@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
-import '../main.dart';
-import 'learned_words_page.dart';
-import 'new_word_search_page.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 
-// Data contoh 
+import '../core/theme/app_colors.dart';
+import '../features/learning/presentation/cubit/learning_cubit.dart';
+import '../features/learning/domain/entities/batak_word.dart';
+
+// Data contoh
 const _words = [
   ('HORAS', 'Halo / salam'),
   ('MAULIATE', 'Terima kasih'),
@@ -16,6 +19,11 @@ class DictionaryPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final state = context.watch<LearningCubit>().state;
+    final learned = state is LearningLoaded
+        ? state.learnedWords.take(3).toList()
+        : const <BatakWord>[];
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -24,54 +32,59 @@ class DictionaryPage extends StatelessWidget {
           children: [
             const Text('Kamus',
                 style: TextStyle(
-                    fontSize: 22, fontWeight: FontWeight.w800, color: Color(0xFF0F1B33))),
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF0F1B33))),
             const SizedBox(height: 4),
-            const Text('Cari arti kata atau lihat kata yang sudah kamu pelajari.',
-                style: TextStyle(
-                    fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF5F6F8A))),
+            const Text(
+              'Cari arti kata atau lihat kata yang sudah kamu pelajari.',
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF5F6F8A)),
+            ),
             const SizedBox(height: 16),
             const _SearchBar(hint: 'Cari kata Bahasa Batak...'),
             const SizedBox(height: 24),
             InkWell(
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const LearnedWordsPage(),
-                ),
-              ),
-              child: const Row(
+              onTap: () => context.push('/dictionary/learned'),
+              child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('Kata yang sudah dipelajari',
-                      style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF0F1B33))),
-                  Text('32 kata',
-                      style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.primary)),
+                  const Text(
+                    'Kata yang sudah dipelajari',
+                    style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF0F1B33)),
+                  ),
+                  Text(
+                    '${state is LearningLoaded ? state.learnedWords.length : 32} kata',
+                    style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.primary),
+                  ),
                 ],
               ),
             ),
             const SizedBox(height: 12),
-            for (final w in _words) ...[
-              _WordCard(batak: w.$1, meaning: w.$2),
-              const SizedBox(height: 10),
-            ],
+            if (learned.isEmpty)
+              for (final w in _words) ...[
+                _WordCard(batak: w.$1, meaning: w.$2),
+                const SizedBox(height: 10),
+              ]
+            else
+              for (final w in learned) ...[
+                _WordCard(batak: w.word.toUpperCase(), meaning: w.meaning),
+                const SizedBox(height: 10),
+              ],
             const SizedBox(height: 2),
             _InfoCard(
               icon: '🔎',
               title: 'Cari kata baru',
               message: 'Belum pernah dipelajari? Cari di sini.',
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const NewWordSearchPage(),
-                  ),
-                );
-              },
+              onTap: () => context.push('/dictionary/new'),
             ),
           ],
         ),
@@ -194,4 +207,3 @@ class _InfoCard extends StatelessWidget {
     );
   }
 }
-

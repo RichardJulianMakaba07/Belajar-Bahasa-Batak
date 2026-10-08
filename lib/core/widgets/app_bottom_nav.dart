@@ -1,16 +1,13 @@
 import 'package:flutter/material.dart';
 
-import 'app_colors.dart';
+import '../theme/app_colors.dart';
 
-/// ---------------------------------------------------------------------------
-/// BOTTOM NAVIGATION (bagian yang tetap sama di semua halaman)
-/// ---------------------------------------------------------------------------
-class _NavItem {
+class NavItemData {
   final IconData icon;
   final IconData activeIcon;
   final String label;
 
-  const _NavItem({
+  const NavItemData({
     required this.icon,
     required this.activeIcon,
     required this.label,
@@ -27,24 +24,24 @@ class AppBottomNav extends StatelessWidget {
     required this.onTap,
   });
 
-  static const List<_NavItem> _items = [
-    _NavItem(
+  static const List<NavItemData> _items = [
+    NavItemData(
       icon: Icons.home_outlined,
       activeIcon: Icons.home_rounded,
       label: 'Beranda',
     ),
-    _NavItem(
+    NavItemData(
       icon: Icons.search_rounded,
       activeIcon: Icons.search_rounded,
       label: 'Kamus',
     ),
-    _NavItem(
+    NavItemData(
       icon: Icons.check_rounded,
       activeIcon: Icons.check_circle_rounded,
       label: 'Latihan',
     ),
-    _NavItem(
-      icon: Icons.person_outline_rounded, // ikon profil
+    NavItemData(
+      icon: Icons.person_outline_rounded,
       activeIcon: Icons.person_rounded,
       label: 'Profil',
     ),
@@ -58,7 +55,7 @@ class AppBottomNav extends StatelessWidget {
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0D4B9B).withOpacity(0.10),
+            color: AppColors.primary.withOpacity(0.10),
             blurRadius: 20,
             offset: const Offset(0, -4),
           ),
@@ -86,7 +83,7 @@ class AppBottomNav extends StatelessWidget {
 }
 
 class _NavButton extends StatelessWidget {
-  final _NavItem item;
+  final NavItemData item;
   final bool selected;
   final VoidCallback onTap;
 

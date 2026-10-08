@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
-import '../main.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 
-// Data contoh 
-const _words = [
-  ('HORAS', 'Halo / salam'),
-  ('MAULIATE', 'Terima kasih'),
-  ('AMANG', 'Ayah / panggilan untuk laki-laki'),
-  ('INANG', 'Ibu / panggilan untuk perempuan'),
-  ('GABE', 'Menjadi / berhasil'),
-];
+import '../core/theme/app_colors.dart';
+import '../features/learning/presentation/cubit/learning_cubit.dart';
+
+class _FallbackWord {
+  final String word;
+  final String meaning;
+  const _FallbackWord(this.word, this.meaning);
+}
 
 /// Kata yang Dipelajari
 class LearnedWordsPage extends StatelessWidget {
@@ -16,6 +17,16 @@ class LearnedWordsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final state = context.watch<LearningCubit>().state;
+    const fallbackWords = <_FallbackWord>[
+      _FallbackWord('HORAS', 'Halo / salam'),
+      _FallbackWord('MAULIATE', 'Terima kasih'),
+      _FallbackWord('AMANG', 'Ayah / panggilan untuk laki-laki'),
+      _FallbackWord('INANG', 'Ibu / panggilan untuk perempuan'),
+      _FallbackWord('GABE', 'Menjadi / berhasil'),
+    ];
+
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -25,9 +36,9 @@ class LearnedWordsPage extends StatelessWidget {
             Row(
               children: [
                 IconButton(
-                  onPressed: () => Navigator.of(context).pop(),
+                  onPressed: () => context.pop(),
                   icon: const Icon(Icons.arrow_back, size: 22),
-                  color: Color(0xFF0F1B33),
+                  color: const Color(0xFF0F1B33),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
                 ),
@@ -40,32 +51,50 @@ class LearnedWordsPage extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 14),
-            const Text('32 kata tersimpan di bank kata kamu',
-                style: TextStyle(
-                    fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.inactive)),
+            Text(
+              '${state is LearningLoaded ? state.learnedWords.length : 32} kata tersimpan di bank kata kamu',
+              style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.inactive),
+            ),
             const SizedBox(height: 14),
             const _SearchBar(hint: 'Cari kata yang sudah dipelajari...'),
             const SizedBox(height: 22),
-            const Row(
+            Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Semua kata',
+                const Text('Semua kata',
                     style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
                         color: Color(0xFF0F1B33))),
-                Text('32 kata',
-                    style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.primary)),
+                Text(
+                  '${state is LearningLoaded ? state.learnedWords.length : 32} kata',
+                  style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.primary),
+                ),
               ],
             ),
             const SizedBox(height: 12),
-            for (final w in _words) ...[
-              _WordCard(batak: w.$1, meaning: w.$2),
-              const SizedBox(height: 10),
-            ],
+            if (state is LearningLoaded)
+              for (final w in state.learnedWords) ...[
+                _WordCard(
+                  batak: w.word.toUpperCase(),
+                  meaning: w.meaning,
+                ),
+                const SizedBox(height: 10),
+              ]
+            else
+              for (final w in fallbackWords) ...[
+                _WordCard(
+                  batak: w.word,
+                  meaning: w.meaning,
+                ),
+                const SizedBox(height: 10),
+              ],
             const SizedBox(height: 2),
             const _TipCard(
               message:
@@ -181,4 +210,3 @@ class _TipCard extends StatelessWidget {
     );
   }
 }
-

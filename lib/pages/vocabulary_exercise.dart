@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:pembelajaran_bahasa_batak/main.dart';
-import 'package:pembelajaran_bahasa_batak/pages/kalimat_page.dart';
-import 'package:pembelajaran_bahasa_batak/pages/quiz1_page.dart';
+import 'package:go_router/go_router.dart';
+
+import '../core/theme/app_colors.dart';
 
 class VocabularyExercisePage extends StatelessWidget {
   /// Jumlah kata baru yang dipelajari user hari ini.
@@ -12,7 +12,6 @@ class VocabularyExercisePage extends StatelessWidget {
 
   /// Jumlah soal tiap latihan.
   final int questionCount;
-
 
   const VocabularyExercisePage({
     super.key,
@@ -58,12 +57,7 @@ class VocabularyExercisePage extends StatelessWidget {
               description: 'Pilih arti yang benar dari kata yang ditampilkan.',
               meta: '$questionCount soal  •  Pilihan ganda',
               onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const Quiz1Page(),
-                  ),
-                );
+                context.push('/exercise/quiz');
               },
             ),
             const SizedBox(height: 14),
@@ -74,12 +68,7 @@ class VocabularyExercisePage extends StatelessWidget {
                   'Susun kata-kata acak menjadi kalimat yang benar.',
               meta: '$questionCount soal  •  Susun kata',
               onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const KalimatPage(),
-                  ),
-                );
+                context.push('/exercise/sentence');
               },
             ),
             const SizedBox(height: 28),
@@ -117,7 +106,7 @@ class VocabularyExercisePage extends StatelessWidget {
 
   // ------------------------------------------------------------ REVIEW CARD
   Widget _buildReviewCard() {
-    final hasLearned = learnedToday > 0;
+    final hasLearned = learnedToday> 0;
 
     return Container(
       width: double.infinity,
@@ -314,4 +303,4 @@ class _ExerciseCard extends StatelessWidget {
       ),
     );
   }
-}
+}  

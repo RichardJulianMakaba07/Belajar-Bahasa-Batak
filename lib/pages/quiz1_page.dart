@@ -1,30 +1,13 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
-import '../main.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
+
+import '../core/theme/app_colors.dart';
+import '../features/learning/presentation/cubit/learning_cubit.dart';
+import '../features/learning/presentation/cubit/quiz_cubit.dart';
 import 'latihan_selesai_page.dart';
 
-class QuizWord {
-  final String word;
-  final String meaning;
-
-  const QuizWord({required this.word, required this.meaning});
-}
-
-/// Satu soal: kata, 4 pilihan arti, dan indeks jawaban yang benar.
-class _QuizQuestion {
-  final String word;
-  final List<String> options;
-  final int correctIndex;
-
-  const _QuizQuestion({
-    required this.word,
-    required this.options,
-    required this.correctIndex,
-  });
-}
-
-const List<QuizWord> _dummyWords = [
+const List<QuizWord> _defaultWords = [
   QuizWord(word: 'Horas', meaning: 'Halo / salam'),
   QuizWord(word: 'Mauliate', meaning: 'Terima kasih'),
   QuizWord(word: 'Amang', meaning: 'Bapak / ayah'),
@@ -42,14 +25,9 @@ const List<QuizWord> _dummyWords = [
 /// ---------------------------------------------------------------------------
 /// HALAMAN KUIS: PILIH ARTI KATA
 /// ---------------------------------------------------------------------------
-class Quiz1Page extends StatefulWidget {
-  /// Kata sumber soal. Jika null, memakai data dummy.
+class Quiz1Page extends StatelessWidget {
   final List<QuizWord>? words;
-
-  /// Jumlah soal (default 10). Dibatasi oleh jumlah kata yang tersedia.
   final int questionCount;
-
-  /// Dipanggil saat kuis selesai, membawa skor. Jika null, hanya dialog hasil.
   final void Function(int score, int total)? onFinished;
 
   const Quiz1Page({
@@ -60,95 +38,30 @@ class Quiz1Page extends StatefulWidget {
   });
 
   @override
-  State<Quiz1Page> createState() => _Quiz1PageState();
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (_) => QuizCubit(
+        words ?? _defaultWords,
+        questionCount: questionCount,
+      ),
+      child: _QuizView(
+        onFinished: onFinished,
+      ),
+    );
+  }
 }
 
-class _Quiz1PageState extends State<Quiz1Page> {
+class _QuizView extends StatelessWidget {
   static const _correctColor = Color(0xFF2E9E5B);
   static const _correctBg = Color(0xFFE8F6EE);
   static const _wrongColor = Color(0xFFD64545);
   static const _wrongBg = Color(0xFFFDECEC);
 
-  late final List<_QuizQuestion> _questions;
-  int _index = 0;
-  int? _selected; // indeks jawaban yang dipilih pada soal saat ini
-  int _score = 0;
-  final List<bool> _answers = [];
-  bool _hintOpen = true;
+  final void Function(int score, int total)? onFinished;
 
-  final Stopwatch _stopwatch = Stopwatch()..start();
-  Duration _duration = Duration.zero;
-  bool _finished = false;
+  const _QuizView({this.onFinished});
 
-  bool get _answered => _selected != null;
-  bool get _isLast => _index == _questions.length - 1;
-  _QuizQuestion get _current => _questions[_index];
-
-  @override
-  void initState() {
-    super.initState();
-    _questions = _buildQuestions(widget.words ?? _dummyWords);
-  }
-
-  // Membuat soal acak: 1 jawaban benar + 3 pengecoh dari arti kata lain.
-  List<_QuizQuestion> _buildQuestions(List<QuizWord> words) {
-    final rnd = Random();
-    final pool = [...words]..shuffle(rnd);
-    final picked = pool.take(min(widget.questionCount, pool.length));
-
-    return picked.map((w) {
-      final distractors = words
-          .where((x) => x.meaning != w.meaning)
-          .map((x) => x.meaning)
-          .toSet()
-          .toList()
-        ..shuffle(rnd);
-      final options = [w.meaning, ...distractors.take(3)]..shuffle(rnd);
-      return _QuizQuestion(
-        word: w.word,
-        options: options,
-        correctIndex: options.indexOf(w.meaning),
-      );
-    }).toList();
-  }
-
-  void _selectOption(int i) {
-    if (_answered) return;
-
-    setState(() {
-      _selected = i;
-
-      final correct = i == _current.correctIndex;
-      _answers.add(correct);
-
-      if (correct) _score++;
-    });
-  }
-
-  void _next() {
-    if (!_answered) return;
-    if (_isLast) {
-      _finish();
-    } else {
-      setState(() {
-        _index++;
-        _selected = null;
-      });
-    }
-  }
-
-  void _finish() {
-    _stopwatch.stop();
-
-    setState(() {
-      _duration = _stopwatch.elapsed;
-      _finished = true;
-    });
-
-    widget.onFinished?.call(_score, _questions.length);
-  }
-
-  Future<bool> _confirmExit() async {
+  Future<bool> _confirmExit(BuildContext context) async {
     final result = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -172,93 +85,123 @@ class _Quiz1PageState extends State<Quiz1Page> {
     return result ?? false;
   }
 
-  Future<void> _exit() async {
-    if (await _confirmExit() && mounted) Navigator.of(context).pop();
+  Future<void> _exit(BuildContext context) async {
+    if (await _confirmExit(context) && context.mounted) {
+      context.pop();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_finished) {
-      return LatihanSelesaiPage(
-        skor: _score,
-        totalSoal: _questions.length,
-        durasi: _duration,
-        xp: _score * 10,
-        kataDireview: _questions.length,
-        jawaban: [
-          for (var i = 0; i < _questions.length; i++)
-            JawabanItem(
-              _questions[i].word,
-              i < _answers.length ? _answers[i] : false,
-            ),
-        ],
-        onSelesai: () {
-          Navigator.of(context).pop();
-        },
-      );
-    }
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) _exit();
+    return BlocListener<QuizCubit, QuizState>(
+      listenWhen: (previous, current) =>
+          !previous.finished && current.finished,
+      listener: (context, state) {
+        context.read<LearningCubit>().saveExerciseResult(
+          correct: state.score,
+          total: state.questions.length,
+          reviewedWords: state.questions.length,
+          xp: state.score * 10,
+        );
+        onFinished?.call(state.score, state.questions.length);
       },
-      child: Scaffold(
-        backgroundColor: AppColors.background,
-        body: SafeArea(
-          child: Column(
-            children: [
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildHeader(),
-                      const SizedBox(height: 14),
-                      _buildProgress(),
-                      const SizedBox(height: 26),
-                      const Text(
-                        'Apa arti kata ini?',
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.dark,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      _buildWordCard(),
-                      const SizedBox(height: 14),
-                      ...List.generate(
-                        _current.options.length,
-                        (i) => Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: _buildOption(i),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      _buildHint(),
-                    ],
+      child: BlocBuilder<QuizCubit, QuizState>(
+        builder: (context, state) {
+          if (state.questions.isEmpty) {
+            return const Scaffold(
+              backgroundColor: AppColors.background,
+              body: Center(
+                child: Text('Belum ada kata untuk latihan.'),
+              ),
+            );
+          }
+
+          if (state.finished) {
+            return LatihanSelesaiPage(
+              skor: state.score,
+              totalSoal: state.questions.length,
+              durasi: state.duration,
+              xp: state.score * 10,
+              kataDireview: state.questions.length,
+              jawaban: [
+                for (var i = 0; i < state.questions.length; i++)
+                  JawabanItem(
+                    state.questions[i].word,
+                    i < state.answers.length ? state.answers[i] : false,
                   ),
+              ],
+              onSelesai: () => context.go('/exercise'),
+            );
+          }
+
+          return PopScope(
+            canPop: false,
+            onPopInvokedWithResult: (didPop, _) {
+              if (!didPop) _exit(context);
+            },
+            child: Scaffold(
+              backgroundColor: AppColors.background,
+              body: SafeArea(
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildHeader(context),
+                            const SizedBox(height: 14),
+                            _buildProgress(context, state),
+                            const SizedBox(height: 26),
+                            const Text(
+                              'Apa arti kata ini?',
+                              style: TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.dark,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            _buildWordCard(state),
+                            const SizedBox(height: 14),
+                            ...List.generate(
+                              state.current.options.length,
+                              (i) => Padding(
+                                padding: const EdgeInsets.only(bottom: 12),
+                                child: _buildOption(context, state, i),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            _buildHint(context, state),
+                          ],
+                        ),
+                      ),
+                    ),
+                    _buildFooterActions(context, state),
+                  ],
                 ),
               ),
-              _buildFooterActions(),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       ),
     );
   }
 
-  // ------------------------------------------------------------------ HEADER
-  Widget _buildHeader() {
+  Widget _buildHeader(BuildContext context) {
     return Row(
       children: [
         InkWell(
-          onTap: _exit,
+          onTap: () => _exit(context),
           borderRadius: BorderRadius.circular(20),
           child: const Padding(
             padding: EdgeInsets.all(6),
-            child: Icon(Icons.arrow_back_rounded, size: 28, color: AppColors.dark),
+            child: Icon(
+              Icons.arrow_back_rounded,
+              size: 28,
+              color: AppColors.dark,
+            ),
           ),
         ),
         const SizedBox(width: 10),
@@ -274,14 +217,13 @@ class _Quiz1PageState extends State<Quiz1Page> {
     );
   }
 
-  // ---------------------------------------------------------------- PROGRESS
-  Widget _buildProgress() {
-    final total = _questions.length;
+  Widget _buildProgress(BuildContext context, QuizState state) {
+    final total = state.questions.length;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Soal ${_index + 1} dari $total',
+          'Soal ${state.index + 1} dari $total',
           style: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w500,
@@ -290,7 +232,7 @@ class _Quiz1PageState extends State<Quiz1Page> {
         ),
         const SizedBox(height: 8),
         TweenAnimationBuilder<double>(
-          tween: Tween(end: (_index + 1) / total),
+          tween: Tween(end: (state.index + 1) / total),
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeOut,
           builder: (context, value, _) => ClipRRect(
@@ -308,8 +250,7 @@ class _Quiz1PageState extends State<Quiz1Page> {
     );
   }
 
-  // --------------------------------------------------------------- WORD CARD
-  Widget _buildWordCard() {
+  Widget _buildWordCard(QuizState state) {
     return Container(
       width: double.infinity,
       height: 172,
@@ -327,7 +268,7 @@ class _Quiz1PageState extends State<Quiz1Page> {
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
             child: Text(
-              _current.word.toUpperCase(),
+              state.current.word.toUpperCase(),
               style: const TextStyle(
                 fontSize: 40,
                 fontWeight: FontWeight.w700,
@@ -349,27 +290,32 @@ class _Quiz1PageState extends State<Quiz1Page> {
     );
   }
 
-  // ------------------------------------------------------------------ OPTION
-  Widget _buildOption(int i) {
+  Widget _buildOption(BuildContext context, QuizState state, int i) {
     const letters = ['A', 'B', 'C', 'D'];
-    final isCorrect = i == _current.correctIndex;
-    final isSelected = i == _selected;
+    final isCorrect = i == state.current.correctIndex;
+    final isSelected = i == state.selected;
 
     Color bg = Colors.white;
     Color borderColor = AppColors.border;
     Widget? trailing;
 
-    if (_answered) {
+    if (state.answered) {
       if (isCorrect) {
         bg = _correctBg;
         borderColor = _correctColor;
-        trailing = const Icon(Icons.check_circle_rounded,
-            color: _correctColor, size: 22);
+        trailing = const Icon(
+          Icons.check_circle_rounded,
+          color: _correctColor,
+          size: 22,
+        );
       } else if (isSelected) {
         bg = _wrongBg;
         borderColor = _wrongColor;
-        trailing =
-            const Icon(Icons.cancel_rounded, color: _wrongColor, size: 22);
+        trailing = const Icon(
+          Icons.cancel_rounded,
+          color: _wrongColor,
+          size: 22,
+        );
       }
     }
 
@@ -377,7 +323,7 @@ class _Quiz1PageState extends State<Quiz1Page> {
       color: bg,
       borderRadius: BorderRadius.circular(20),
       child: InkWell(
-        onTap: () => _selectOption(i),
+        onTap: () => context.read<QuizCubit>().selectOption(i),
         borderRadius: BorderRadius.circular(20),
         child: Container(
           constraints: const BoxConstraints(minHeight: 64),
@@ -401,7 +347,7 @@ class _Quiz1PageState extends State<Quiz1Page> {
               ),
               Expanded(
                 child: Text(
-                  _current.options[i],
+                  state.current.options[i],
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
@@ -417,8 +363,7 @@ class _Quiz1PageState extends State<Quiz1Page> {
     );
   }
 
-  // -------------------------------------------------------------------- HINT
-  Widget _buildHint() {
+  Widget _buildHint(BuildContext context, QuizState state) {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
@@ -428,7 +373,7 @@ class _Quiz1PageState extends State<Quiz1Page> {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () => setState(() => _hintOpen = !_hintOpen),
+          onTap: () => context.read<QuizCubit>().toggleHint(),
           borderRadius: BorderRadius.circular(16),
           child: Padding(
             padding: const EdgeInsets.fromLTRB(18, 14, 14, 14),
@@ -454,7 +399,7 @@ class _Quiz1PageState extends State<Quiz1Page> {
                         ),
                       ),
                       AnimatedRotation(
-                        turns: _hintOpen ? 0.5 : 0,
+                        turns: state.hintOpen ? 0.5 : 0,
                         duration: const Duration(milliseconds: 200),
                         child: const Icon(
                           Icons.keyboard_arrow_down_rounded,
@@ -463,7 +408,7 @@ class _Quiz1PageState extends State<Quiz1Page> {
                       ),
                     ],
                   ),
-                  if (_hintOpen) ...[
+                  if (state.hintOpen) ...[
                     const SizedBox(height: 6),
                     const Text(
                       'Pilih jawaban yang paling tepat.',
@@ -483,15 +428,14 @@ class _Quiz1PageState extends State<Quiz1Page> {
     );
   }
 
-  // ---------------------------------------------------------- FOOTER ACTIONS
-  Widget _buildFooterActions() {
+  Widget _buildFooterActions(BuildContext context, QuizState state) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           TextButton(
-            onPressed: _exit,
+            onPressed: () => _exit(context),
             style: TextButton.styleFrom(
               foregroundColor: AppColors.inactive,
               padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
@@ -502,7 +446,9 @@ class _Quiz1PageState extends State<Quiz1Page> {
             ),
           ),
           TextButton(
-            onPressed: _answered ? _next : null,
+            onPressed: state.answered
+                ? () => context.read<QuizCubit>().next()
+                : null,
             style: TextButton.styleFrom(
               foregroundColor: AppColors.primary,
               disabledForegroundColor: const Color(0xFFA9B6CB),
@@ -512,7 +458,7 @@ class _Quiz1PageState extends State<Quiz1Page> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  _isLast ? 'Selesai' : 'Berikutnya',
+                  state.isLast ? 'Selesai' : 'Berikutnya',
                   style: const TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w800,

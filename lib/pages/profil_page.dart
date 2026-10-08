@@ -1,7 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
-import '../main.dart';
+
+import '../core/theme/app_colors.dart';
+import '../features/profile/presentation/cubit/profile_cubit.dart';
 
 BoxDecoration _card([double radius = 20]) => BoxDecoration(
   color: Colors.white,
@@ -27,16 +30,10 @@ const _gold = Color(0xFFF2B33D);
 
 class _ProfilPageState extends State<ProfilPage> {
   // ---- data contoh ----
-  String _name = 'Maruli Sihombing';
-  bool _reminder = true;
 
   // ---- foto profil ----
   Uint8List? _photo; // null = belum ada foto, tampilkan inisial
   final ImagePicker _picker = ImagePicker();
-
-  final int _level = 3;
-  final int _xp = 340;
-  final int _xpTarget = 500;
 
   final List<_BadgeData> _badges = const [
     _BadgeData(Icons.waving_hand_rounded, 'Horas!', true),
@@ -44,6 +41,13 @@ class _ProfilPageState extends State<ProfilPage> {
     _BadgeData(Icons.menu_book_rounded, '100 Kata', true),
     _BadgeData(Icons.emoji_events_rounded, 'Sempurna', false),
   ];
+
+  // ---- data dari Cubit ----
+  String get _name => context.read<ProfileCubit>().state.name;
+  bool get _reminder => context.read<ProfileCubit>().state.reminder;
+  int get _level => context.read<ProfileCubit>().state.level;
+  int get _xp => context.read<ProfileCubit>().state.xp;
+  int get _xpTarget => context.read<ProfileCubit>().state.xpTarget;
 
   // ---- helper ----
   String get _username =>
@@ -169,7 +173,7 @@ class _ProfilPageState extends State<ProfilPage> {
       builder: (_) => _EditNameSheet(initialName: _name),
     );
     if (result != null && mounted) {
-      setState(() => _name = result);
+      context.read<ProfileCubit>().updateName(result);
     }
   }
 
@@ -205,6 +209,7 @@ class _ProfilPageState extends State<ProfilPage> {
   // -------------------------------------------------------------------------
   @override
   Widget build(BuildContext context) {
+    final profile = context.watch<ProfileCubit>().state;
     return ColoredBox(
       color: AppColors.background,
       child: SingleChildScrollView(
@@ -214,7 +219,7 @@ class _ProfilPageState extends State<ProfilPage> {
             _buildHeader(),
             const SizedBox(height: 14),
             Text(
-              _name,
+              profile.name,
               style: const TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.w800,
@@ -526,11 +531,11 @@ class _ProfilPageState extends State<ProfilPage> {
               _SettingTile(
                 icon: Icons.notifications_none_rounded,
                 title: 'Pengingat belajar harian',
-                onTap: () => setState(() => _reminder = !_reminder),
+                onTap: () => context.read<ProfileCubit>().setReminder(!_reminder),
                 trailing: Switch(
                   value: _reminder,
                   activeColor: AppColors.primary,
-                  onChanged: (v) => setState(() => _reminder = v),
+                  onChanged: context.read<ProfileCubit>().setReminder,
                 ),
               ),
               divider,
@@ -733,6 +738,7 @@ class _EditNameSheet extends StatefulWidget {
 }
 
 class _EditNameSheetState extends State<_EditNameSheet> {
+  final _formKey = GlobalKey<FormState>();
   late final TextEditingController _controller = TextEditingController(
     text: widget.initialName,
   );
@@ -744,8 +750,8 @@ class _EditNameSheetState extends State<_EditNameSheet> {
   }
 
   void _save() {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
     final value = _controller.text.trim();
-    if (value.isEmpty) return;
     Navigator.pop(context, value);
   }
 
@@ -758,34 +764,42 @@ class _EditNameSheetState extends State<_EditNameSheet> {
         20,
         20 + MediaQuery.of(context).viewInsets.bottom,
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Edit profil',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-              color: AppColors.dark,
-            ),
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _controller,
-            autofocus: true,
-            textCapitalization: TextCapitalization.words,
-            onSubmitted: (_) => _save(),
-            decoration: InputDecoration(
-              labelText: 'Nama',
-              prefixIcon: const Icon(Icons.person_outline_rounded),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Edit profil',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: AppColors.dark,
               ),
             ),
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _controller,
+              autofocus: true,
+              textCapitalization: TextCapitalization.words,
+              onFieldSubmitted: (_) => _save(),
+              validator: (value) {
+                final name = value?.trim() ?? '';
+                if (name.isEmpty) return 'Nama wajib diisi.';
+                if (name.length < 3) return 'Nama minimal 3 karakter.';
+                return null;
+              },
+              decoration: InputDecoration(
+                labelText: 'Nama',
+                prefixIcon: const Icon(Icons.person_outline_rounded),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
             width: double.infinity,
             height: 48,
             child: FilledButton(
@@ -802,7 +816,8 @@ class _EditNameSheetState extends State<_EditNameSheet> {
               ),
             ),
           ),
-        ],
+          ],
+        ),
       ),
     );
   }

@@ -1,29 +1,10 @@
 import 'package:flutter/material.dart';
-import '../main.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 
-class BatakWord {
-  final String word;
-  final String meaning;
-  final bool isLearned;
-
-  const BatakWord({
-    required this.word,
-    required this.meaning,
-    this.isLearned = false,
-  });
-}
-
-const List<BatakWord> _dummyWords = [
-  BatakWord(word: 'Horas', meaning: 'Halo / salam'),
-  BatakWord(word: 'Mauliate', meaning: 'Terima kasih'),
-  BatakWord(word: 'Amang', meaning: 'Bapak / ayah'),
-  BatakWord(word: 'Inang', meaning: 'Ibu'),
-  BatakWord(word: 'Boru', meaning: 'Anak perempuan'),
-  BatakWord(word: 'Bere', meaning: 'Keponakan'),
-  BatakWord(word: 'Lae', meaning: 'Sapaan untuk ipar laki-laki'),
-  // Contoh kata yang sudah dipelajari -> tidak muncul di halaman ini.
-  BatakWord(word: 'Dame', meaning: 'Damai', isLearned: true),
-];
+import '../core/theme/app_colors.dart';
+import '../features/learning/domain/entities/batak_word.dart';
+import '../features/learning/presentation/cubit/learning_cubit.dart';
 
 const List<String> _exampleWords = ['Horas', 'Mauliate', 'Amang', 'Inang'];
 
@@ -53,17 +34,22 @@ class _NewWordSearchPageState extends State<NewWordSearchPage> {
   }
 
   // Hanya kata yang BELUM dipelajari yang ditampilkan.
-  void _search(String query) {
-    final q = query.trim().toLowerCase();
-    setState(() {
-      if (q.isEmpty) {
-        _results = [];
-      } else {
-        _results = _dummyWords
-            .where((w) => !w.isLearned && w.word.toLowerCase().contains(q))
-            .toList();
-      }
-    });
+  Future<void> _search(String query) async {
+    final q = query.trim();
+    if (q.isEmpty) {
+      if (mounted) setState(() => _results = []);
+      return;
+    }
+
+    await context.read<LearningCubit>().search(q);
+    if (!mounted || _controller.text.trim().toLowerCase() != q.toLowerCase()) {
+      return;
+    }
+
+    final state = context.read<LearningCubit>().state;
+    if (state is LearningLoaded) {
+      setState(() => _results = state.newWords);
+    }
   }
 
   void _selectExample(String word) {
@@ -125,7 +111,7 @@ class _NewWordSearchPageState extends State<NewWordSearchPage> {
     return Row(
       children: [
         InkWell(
-          onTap: () => Navigator.of(context).maybePop(),
+          onTap: () => context.pop(),
           borderRadius: BorderRadius.circular(20),
           child: const Padding(
             padding: EdgeInsets.all(6),
@@ -250,7 +236,12 @@ class _NewWordSearchPageState extends State<NewWordSearchPage> {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () => widget.onWordTap?.call(word),
+          onTap: () async {
+            await context.read<LearningCubit>().setLearned(word);
+            if (!mounted) return;
+            widget.onWordTap?.call(word.copyWith(isLearned: true));
+            await _search(_controller.text);
+          },
           borderRadius: BorderRadius.circular(18),
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 12, 16),

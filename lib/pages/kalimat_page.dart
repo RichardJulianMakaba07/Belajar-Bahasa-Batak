@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
-import '../main.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 
+import '../core/theme/app_colors.dart';
+import '../features/learning/presentation/cubit/learning_cubit.dart';
+import '../features/learning/presentation/cubit/sentence_cubit.dart';
 import 'latihan_selesai_page.dart';
 
 BoxDecoration _card([double radius = 16]) => BoxDecoration(
@@ -15,139 +19,31 @@ BoxDecoration _card([double radius = 16]) => BoxDecoration(
   ],
 );
 
-const _defaultHint = 'Pikirkan urutan kalimat yang paling natural.';
-
-/// XP yang didapat untuk setiap jawaban benar.
 const _xpPerCorrect = 10;
+const _gold = Color(0xFFF2B33D);
+const _green = Color(0xFF2E7D32);
+const _red = Color(0xFFC62828);
 
-class _Question {
-  final List<String> words; // semua kata yang tampil (boleh ada pengecoh)
-  final List<String> answer; // urutan kata yang benar
-  final String hint;
-
-  const _Question({
-    required this.words,
-    required this.answer,
-    this.hint = _defaultHint,
-  });
-}
-
-const List<_Question> _questions = [
-  _Question(
-    words: ['aku', 'mauliate', 'hamu', 'HORAS', 'ma'],
-    answer: ['HORAS', 'mauliate', 'ma', 'hamu'],
-  ),
-  _Question(
-    words: ['hita', 'ahu', 'ma', 'mangan'],
-    answer: ['mangan', 'ma', 'hita'],
-  ),
-  _Question(
-    words: ['tu', 'dang', 'jabu', 'ahu', 'mulak'],
-    answer: ['mulak', 'ahu', 'tu', 'jabu'],
-  ),
-  _Question(
-    words: ['Batak', 'hamu', 'halak', 'ahu'],
-    answer: ['ahu', 'halak', 'Batak'],
-  ),
-  _Question(words: ['huboto', 'mauliate', 'dang'], answer: ['dang', 'huboto']),
-];
-
-class _Word {
-  final int id; // urutan asli di bank kata
-  final String text;
-  const _Word(this.id, this.text);
-}
-
-class KalimatPage extends StatefulWidget {
+class KalimatPage extends StatelessWidget {
   final VoidCallback? onExit;
 
   const KalimatPage({super.key, this.onExit});
 
   @override
-  State<KalimatPage> createState() => _KalimatPageState();
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (_) => SentenceCubit(),
+      child: _KalimatView(onExit: onExit),
+    );
+  }
 }
 
-class _KalimatPageState extends State<KalimatPage> {
-  int _index = 0;
-  late List<_Word> _bank; // kata yang belum dipilih
-  late List<_Word> _selected; // kata yang sudah dipilih (berurutan)
-  bool? _result; // null = belum dicek, true = benar, false = salah
-  final Set<int> _solved = {}; // soal yang sudah dijawab benar
-  final Stopwatch _stopwatch = Stopwatch()..start(); // hitung waktu latihan
-  Duration _duration = Duration.zero;
-  bool _finished = false; // true = tampilkan halaman Latihan Selesai
+class _KalimatView extends StatelessWidget {
+  final VoidCallback? onExit;
 
-  _Question get _q => _questions[_index];
-  bool get _isLast => _index == _questions.length - 1;
+  const _KalimatView({this.onExit});
 
-  static const _gold = Color(0xFFF2B33D);
-  static const _green = Color(0xFF2E7D32);
-  static const _red = Color(0xFFC62828);
-
-  @override
-  void initState() {
-    super.initState();
-    _loadQuestion();
-  }
-
-  // -------------------------------------------------------------------------
-  // LOGIKA
-  // -------------------------------------------------------------------------
-  void _loadQuestion() {
-    _bank = [for (var i = 0; i < _q.words.length; i++) _Word(i, _q.words[i])];
-    _selected = [];
-    _result = null;
-  }
-
-  void _pick(_Word word) {
-    setState(() {
-      _bank.remove(word);
-      _selected.add(word);
-      _result = null;
-    });
-  }
-
-  void _unpick(_Word word) {
-    setState(() {
-      _selected.remove(word);
-      _bank.add(word);
-      _bank.sort((a, b) => a.id.compareTo(b.id));
-      _result = null;
-    });
-  }
-
-  void _reset() => setState(_loadQuestion);
-
-  void _check() {
-    final user = _selected.map((w) => w.text).join(' ');
-    final correct = _q.answer.join(' ');
-    final ok = user == correct;
-    setState(() {
-      _result = ok;
-      if (ok) _solved.add(_index);
-    });
-  }
-
-  void _next() {
-    if (_isLast) {
-      _finish();
-      return;
-    }
-    setState(() {
-      _index++;
-      _loadQuestion();
-    });
-  }
-
-  void _exit() {
-    if (widget.onExit != null) {
-      widget.onExit!();
-    } else {
-      Navigator.of(context).maybePop();
-    }
-  }
-
-  Future<void> _confirmExit() async {
+  Future<bool> _confirmExit(BuildContext context) async {
     final leave = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -167,101 +63,112 @@ class _KalimatPageState extends State<KalimatPage> {
         ],
       ),
     );
-    if (leave == true && mounted) _exit();
+    return leave ?? false;
   }
 
-  void _finish() {
-    _stopwatch.stop();
-    setState(() {
-      _duration = _stopwatch.elapsed;
-      _finished = true; // langsung pindah ke halaman Latihan Selesai
-    });
+  Future<void> _exit(BuildContext context) async {
+    if (await _confirmExit(context) && context.mounted) {
+      if (onExit != null) {
+        onExit!();
+      } else {
+        context.pop();
+      }
+    }
   }
 
-  void _restart() {
-    setState(() {
-      _solved.clear();
-      _index = 0;
-      _loadQuestion();
-      _finished = false;
-      _stopwatch
-        ..reset()
-        ..start();
-    });
-  }
-
-  // Tombol "Selesai & Kembali ke Latihan" di halaman hasil.
-  void _backToLatihan() {
-    _restart();
-    widget.onExit?.call();
-  }
-
-  // -------------------------------------------------------------------------
-  // BUILD
-  // -------------------------------------------------------------------------
   @override
   Widget build(BuildContext context) {
-    if (_finished) {
-      final skor = _solved.length;
-      return LatihanSelesaiPage(
-        skor: skor,
-        totalSoal: _questions.length,
-        durasi: _duration,
-        xp: skor * _xpPerCorrect,
-        kataDireview: _questions.expand((q) => q.answer).toSet().length,
-        jawaban: [
-          for (var i = 0; i < _questions.length; i++)
-            JawabanItem(_questions[i].answer.join(' '), _solved.contains(i)),
-        ],
-        onSelesai: _backToLatihan,
-      );
-    }
+    return BlocListener<SentenceCubit, SentenceState>(
+      listenWhen: (previous, current) =>
+          !previous.finished && current.finished,
+      listener: (context, state) {
+        context.read<LearningCubit>().saveExerciseResult(
+          correct: state.solved.length,
+          total: state.questions.length,
+          reviewedWords: state.questions.expand((q) => q.answer).toSet().length,
+          xp: state.solved.length * _xpPerCorrect,
+        );
+      },
+      child: BlocBuilder<SentenceCubit, SentenceState>(
+        builder: (context, state) {
+          if (state.finished) {
+            final skor = state.solved.length;
+            return LatihanSelesaiPage(
+              skor: skor,
+              totalSoal: state.questions.length,
+              durasi: state.duration,
+              xp: skor * _xpPerCorrect,
+              kataDireview: state.questions.expand((q) => q.answer).toSet().length,
+              jawaban: [
+                for (var i = 0; i < state.questions.length; i++)
+                  JawabanItem(
+                    state.questions[i].answer.join(' '),
+                    state.solved.contains(i),
+                  ),
+              ],
+              onSelesai: () {
+                if (onExit != null) {
+                  onExit!();
+                } else {
+                  context.go('/exercise');
+                }
+              },
+            );
+          }
 
-    return ColoredBox(
-      color: AppColors.background,
-      child: SafeArea(
-        bottom: false,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildTopBar(),
-              const SizedBox(height: 16),
-              _buildProgress(),
-              const SizedBox(height: 20),
-              const Text(
-                'Susun kata berikut menjadi kalimat yang benar.',
-                style: TextStyle(fontSize: 14, color: AppColors.inactive),
+          return PopScope(
+            canPop: false,
+            onPopInvokedWithResult: (didPop, _) {
+              if (!didPop) _exit(context);
+            },
+            child: ColoredBox(
+              color: AppColors.background,
+              child: SafeArea(
+                bottom: false,
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildTopBar(context),
+                      const SizedBox(height: 16),
+                      _buildProgress(state),
+                      const SizedBox(height: 20),
+                      const Text(
+                        'Susun kata berikut menjadi kalimat yang benar.',
+                        style: TextStyle(fontSize: 14, color: AppColors.inactive),
+                      ),
+                      const SizedBox(height: 14),
+                      _buildSentenceCard(state),
+                      const SizedBox(height: 22),
+                      const _Label('PILIH KATA'),
+                      const SizedBox(height: 10),
+                      _buildBank(context, state),
+                      const SizedBox(height: 22),
+                      const _Label('Kata terpilih'),
+                      const SizedBox(height: 10),
+                      _buildSelected(context, state),
+                      const SizedBox(height: 20),
+                      _buildHint(state),
+                      _buildResult(state),
+                      const SizedBox(height: 24),
+                      _buildActions(context, state),
+                    ],
+                  ),
+                ),
               ),
-              const SizedBox(height: 14),
-              _buildSentenceCard(),
-              const SizedBox(height: 22),
-              const _Label('PILIH KATA'),
-              const SizedBox(height: 10),
-              _buildBank(),
-              const SizedBox(height: 22),
-              const _Label('Kata terpilih'),
-              const SizedBox(height: 10),
-              _buildSelected(),
-              const SizedBox(height: 20),
-              _buildHint(),
-              _buildResult(),
-              const SizedBox(height: 24),
-              _buildActions(),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       ),
     );
   }
-
   // ---- bar atas ----
-  Widget _buildTopBar() {
+  Widget _buildTopBar(BuildContext context) {
     return Row(
       children: [
         IconButton(
-          onPressed: _confirmExit,
+          onPressed: () => _confirmExit(context),
           icon: const Icon(Icons.arrow_back_rounded, color: AppColors.dark),
           padding: EdgeInsets.zero,
           constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
@@ -283,14 +190,14 @@ class _KalimatPageState extends State<KalimatPage> {
   }
 
   // ---- progres soal ----
-  Widget _buildProgress() {
-    final progress = (_index + 1) / _questions.length;
+  Widget _buildProgress(SentenceState state) {
+    final progress = (state.index + 1) / state.questions.length;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Soal ${_index + 1} dari ${_questions.length}',
+          'Soal ${state.index + 1} dari ${state.questions.length}',
           style: const TextStyle(fontSize: 13, color: AppColors.inactive),
         ),
         const SizedBox(height: 8),
@@ -313,9 +220,9 @@ class _KalimatPageState extends State<KalimatPage> {
   }
 
   // ---- kartu kalimat ----
-  Widget _buildSentenceCard() {
-    final hasWords = _selected.isNotEmpty;
-    final sentence = _selected.map((w) => w.text).join(' ');
+  Widget _buildSentenceCard(SentenceState state) {
+    final hasWords = state.selected.isNotEmpty;
+    final sentence = state.selected.map((w) => w.text).join(' ');
 
     return Container(
       width: double.infinity,
@@ -358,10 +265,10 @@ class _KalimatPageState extends State<KalimatPage> {
   }
 
   // ---- bank kata ----
-  Widget _buildBank() {
+  Widget _buildBank(BuildContext context, SentenceState state) {
     return ConstrainedBox(
       constraints: const BoxConstraints(minHeight: 44),
-      child: _bank.isEmpty
+      child: state.bank.isEmpty
           ? const Padding(
               padding: EdgeInsets.symmetric(vertical: 12),
               child: Text(
@@ -372,26 +279,26 @@ class _KalimatPageState extends State<KalimatPage> {
           : Wrap(
               spacing: 10,
               runSpacing: 10,
-              children: _bank
-                  .map((w) => _WordChip(text: w.text, onTap: () => _pick(w)))
+              children: state.bank
+                  .map((w) => _WordChip(text: w.text, onTap: () => context.read<SentenceCubit>().pick(w)))
                   .toList(),
             ),
     );
   }
 
   // ---- kata terpilih ----
-  Widget _buildSelected() {
+  Widget _buildSelected(BuildContext context, SentenceState state) {
     final children = <Widget>[];
-    for (var i = 0; i < _selected.length; i++) {
-      final word = _selected[i];
-      if (i > 0) {
+    for (var i = 0; i < state.selected.length; i++) {
+      final word = state.selected[i];
+      if (i> 0) {
         children.add(
           const Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.inactive),
         );
       }
       children.add(
         InkWell(
-          onTap: () => _unpick(word),
+          onTap: () => context.read<SentenceCubit>().unpick(word),
           borderRadius: BorderRadius.circular(8),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
@@ -416,7 +323,7 @@ class _KalimatPageState extends State<KalimatPage> {
         color: Colors.transparent,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          child: _selected.isEmpty
+          child: state.selected.isEmpty
               ? const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
                   child: Text(
@@ -434,7 +341,7 @@ class _KalimatPageState extends State<KalimatPage> {
   }
 
   // ---- petunjuk ----
-  Widget _buildHint() {
+  Widget _buildHint(SentenceState state) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(14),
@@ -461,7 +368,7 @@ class _KalimatPageState extends State<KalimatPage> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  _q.hint,
+                  state.current.hint,
                   style: const TextStyle(fontSize: 12.5, color: AppColors.inactive),
                 ),
               ],
@@ -473,8 +380,8 @@ class _KalimatPageState extends State<KalimatPage> {
   }
 
   // ---- hasil pengecekan ----
-  Widget _buildResult() {
-    final result = _result;
+  Widget _buildResult(SentenceState state) {
+    final result = state.result;
 
     return AnimatedSize(
       duration: const Duration(milliseconds: 200),
@@ -520,14 +427,14 @@ class _KalimatPageState extends State<KalimatPage> {
   }
 
   // ---- tombol-tombol ----
-  Widget _buildActions() {
+  Widget _buildActions(BuildContext context, SentenceState state) {
     return Column(
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             TextButton(
-              onPressed: _reset,
+              onPressed: context.read<SentenceCubit>().reset,
               child: const Text(
                 'Reset',
                 style: TextStyle(
@@ -538,7 +445,7 @@ class _KalimatPageState extends State<KalimatPage> {
               ),
             ),
             FilledButton(
-              onPressed: _selected.isEmpty ? null : _check,
+              onPressed: state.selected.isEmpty ? null : context.read<SentenceCubit>().check,
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 padding: const EdgeInsets.symmetric(
@@ -561,7 +468,7 @@ class _KalimatPageState extends State<KalimatPage> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             TextButton(
-              onPressed: _confirmExit,
+              onPressed: () => _confirmExit(context),
               child: const Text(
                 'Keluar',
                 style: TextStyle(
@@ -572,12 +479,12 @@ class _KalimatPageState extends State<KalimatPage> {
               ),
             ),
             TextButton(
-              onPressed: _next,
+              onPressed: context.read<SentenceCubit>().next,
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    _isLast ? 'Selesai' : 'Berikutnya',
+                    state.isLast ? 'Selesai' : 'Berikutnya',
                     style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w800,

@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
-import '../main.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+import '../core/theme/app_colors.dart';
+import '../features/learning/domain/entities/learning_progress.dart';
+import '../features/learning/presentation/cubit/learning_cubit.dart';
 
 /// Page 1 — Beranda
 class HomePage extends StatelessWidget {
@@ -14,6 +18,11 @@ class HomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final state = context.watch<LearningCubit>().state;
+    final progress = state is LearningLoaded
+        ? state.progress
+        : const LearningProgress.initial();
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -78,10 +87,10 @@ class HomePage extends StatelessWidget {
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: Color(0xFFDCE5F2)),
               ),
-              child: const Row(
+              child: Row(
                 children: [
-                  Expanded(child: _Stat(value: '32', label: 'kata dipelajari')),
-                  Expanded(child: _Stat(value: '7 🔥', label: 'hari streak')),
+                  Expanded(child: _Stat(value: '${progress.learnedCount}', label: 'kata dipelajari')),
+                  Expanded(child: _Stat(value: '${progress.streakDays} 🔥', label: 'hari streak')),
                 ],
               ),
             ),
@@ -202,4 +211,3 @@ class _InfoCard extends StatelessWidget {
     );
   }
 }
-

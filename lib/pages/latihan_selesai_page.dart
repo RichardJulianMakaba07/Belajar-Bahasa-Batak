@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../main.dart';
+import '../core/theme/app_colors.dart';
 
 BoxDecoration _card([double radius = 18]) => BoxDecoration(
   color: Colors.white,
@@ -45,13 +45,13 @@ class LatihanSelesaiPage extends StatelessWidget {
 
   String get _judul {
     final persen = totalSoal == 0 ? 0.0 : skor / totalSoal;
-    if (persen >= 0.8) return 'Kamu Hebat!';
-    if (persen >= 0.5) return 'Bagus, Terus Semangat!';
+    if (persen>= 0.8) return 'Kamu Hebat!';
+    if (persen>= 0.5) return 'Bagus, Terus Semangat!';
     return 'Ayo Coba Lagi!';
   }
 
   String get _waktu {
-    if (durasi.inMinutes >= 1) return '${durasi.inMinutes} menit';
+    if (durasi.inMinutes>= 1) return '${durasi.inMinutes} menit';
     return '${durasi.inSeconds} detik';
   }
 
@@ -244,7 +244,7 @@ class LatihanSelesaiPage extends StatelessWidget {
           ),
           const Spacer(),
           const Text(
-            'Latihan ini sudah\ntercatat.',
+            'Latihan ini sudah\\ntercatat.',
             textAlign: TextAlign.right,
             style: TextStyle(
               fontSize: 13,
