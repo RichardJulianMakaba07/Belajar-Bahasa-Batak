@@ -44,7 +44,18 @@ class DictionaryPage extends StatelessWidget {
                   color: Color(0xFF5F6F8A)),
             ),
             const SizedBox(height: 16),
-            const _SearchBar(hint: 'Cari kata Bahasa Batak...'),
+            _SearchBar(
+              hint: 'Cari kata Bahasa Batak...',
+              onSubmitted: (query) {
+                final q = query.trim();
+
+                if (q.isNotEmpty) {
+                  context.push(
+                    '/dictionary/new?q=${Uri.encodeQueryComponent(q)}',
+                  );
+                }
+              },
+            ),
             const SizedBox(height: 24),
             InkWell(
               onTap: () => context.push('/dictionary/learned'),
@@ -97,24 +108,40 @@ class DictionaryPage extends StatelessWidget {
 
 class _SearchBar extends StatelessWidget {
   final String hint;
-  const _SearchBar({required this.hint});
+  final ValueChanged<String>? onSubmitted;
+
+  const _SearchBar({
+    required this.hint,
+    this.onSubmitted,
+  });
 
   OutlineInputBorder _outline(Color c) => OutlineInputBorder(
-      borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: c));
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: c),
+      );
 
   @override
   Widget build(BuildContext context) {
     return TextField(
+      onSubmitted: onSubmitted,
+      textInputAction: TextInputAction.search,
       style: const TextStyle(fontSize: 13),
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: const TextStyle(
-            fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF5F6F8A)),
-        prefixIcon: const Icon(Icons.search, size: 18, color: Color(0xFF5F6F8A)),
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFF5F6F8A),
+        ),
+        prefixIcon: const Icon(
+          Icons.search,
+          size: 18,
+          color: Color(0xFF5F6F8A),
+        ),
         filled: true,
         fillColor: Colors.white,
         contentPadding: const EdgeInsets.symmetric(vertical: 12),
-        enabledBorder: _outline(Color(0xFFDCE5F2)),
+        enabledBorder: _outline(const Color(0xFFDCE5F2)),
         focusedBorder: _outline(AppColors.primary),
       ),
     );

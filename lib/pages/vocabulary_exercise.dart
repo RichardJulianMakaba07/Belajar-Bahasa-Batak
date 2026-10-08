@@ -84,11 +84,15 @@ class VocabularyExercisePage extends StatelessWidget {
     return Row(
       children: [
         InkWell(
-          onTap: () => Navigator.of(context).maybePop(),
+          onTap: () => context.go('/home'),
           borderRadius: BorderRadius.circular(20),
           child: const Padding(
             padding: EdgeInsets.all(6),
-            child: Icon(Icons.arrow_back_rounded, size: 28, color: AppColors.dark),
+            child: Icon(
+              Icons.arrow_back_rounded,
+              size: 28,
+              color: AppColors.dark,
+            ),
           ),
         ),
         const SizedBox(width: 10),

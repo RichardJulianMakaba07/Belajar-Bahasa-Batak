@@ -58,14 +58,16 @@ class LearningLocalDataSource {
 
   Future<List<BatakWordModel>> searchNewWords(String query) async {
     await Future<void>.delayed(const Duration(milliseconds: 180));
+
     final normalized = query.trim().toLowerCase();
+
     if (normalized.isEmpty) return const [];
+
     return _refreshDerivedLearnedFlags()
         .where(
           (word) =>
-              !word.isLearned &&
-              (word.word.toLowerCase().contains(normalized) ||
-                  word.meaning.toLowerCase().contains(normalized)),
+              word.word.toLowerCase().contains(normalized) ||
+              word.meaning.toLowerCase().contains(normalized),
         )
         .toList();
   }

@@ -269,9 +269,9 @@ class _NewWordSearchPageState extends State<NewWordSearchPage> {
                         ),
                       ),
                       const SizedBox(height: 10),
-                      const Text(
-                        'Belum dipelajari',
-                        style: TextStyle(
+                      Text(
+                        word.isLearned ? 'Sudah dipelajari' : 'Belum dipelajari',
+                        style: const TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
                           color: AppColors.inactive,
