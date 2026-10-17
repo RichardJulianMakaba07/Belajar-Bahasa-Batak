@@ -4,6 +4,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../core/theme/app_colors.dart';
+import '../features/learning/domain/entities/learning_progress.dart';
+import '../features/learning/presentation/cubit/learning_cubit.dart';
 import '../features/profile/presentation/cubit/profile_cubit.dart';
 
 BoxDecoration _card([double radius = 20]) => BoxDecoration(
@@ -29,25 +31,13 @@ const _ulosRed = Color(0xFFC62828);
 const _gold = Color(0xFFF2B33D);
 
 class _ProfilPageState extends State<ProfilPage> {
-  // ---- data contoh ----
-
   // ---- foto profil ----
   Uint8List? _photo; // null = belum ada foto, tampilkan inisial
   final ImagePicker _picker = ImagePicker();
 
-  final List<_BadgeData> _badges = const [
-    _BadgeData(Icons.waving_hand_rounded, 'Horas!', true),
-    _BadgeData(Icons.local_fire_department_rounded, '7 Hari', true),
-    _BadgeData(Icons.menu_book_rounded, '100 Kata', true),
-    _BadgeData(Icons.emoji_events_rounded, 'Sempurna', false),
-  ];
-
   // ---- data dari Cubit ----
   String get _name => context.read<ProfileCubit>().state.name;
   bool get _reminder => context.read<ProfileCubit>().state.reminder;
-  int get _level => context.read<ProfileCubit>().state.level;
-  int get _xp => context.read<ProfileCubit>().state.xp;
-  int get _xpTarget => context.read<ProfileCubit>().state.xpTarget;
 
   // ---- helper ----
   String get _username =>
@@ -210,6 +200,10 @@ class _ProfilPageState extends State<ProfilPage> {
   @override
   Widget build(BuildContext context) {
     final profile = context.watch<ProfileCubit>().state;
+    final learningState = context.watch<LearningCubit>().state;
+    final learningProgress = learningState is LearningLoaded
+        ? learningState.progress
+        : const LearningProgress.initial();
     return ColoredBox(
       color: AppColors.background,
       child: SingleChildScrollView(
@@ -241,7 +235,11 @@ class _ProfilPageState extends State<ProfilPage> {
               child: const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.translate_rounded, size: 16, color: AppColors.primary),
+                  Icon(
+                    Icons.translate_rounded,
+                    size: 16,
+                    color: AppColors.primary,
+                  ),
                   SizedBox(width: 6),
                   Text(
                     'Pelajar bahasa Batak',
@@ -259,13 +257,13 @@ class _ProfilPageState extends State<ProfilPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildLevelCard(),
+                  _buildLevelCard(learningProgress),
                   const SizedBox(height: 14),
-                  _buildStats(),
+                  _buildStats(learningProgress),
                   const SizedBox(height: 24),
                   const _SectionTitle('Pencapaian'),
                   const SizedBox(height: 12),
-                  _buildBadges(),
+                  _buildBadges(learningProgress),
                   const SizedBox(height: 24),
                   const _SectionTitle('Pengaturan'),
                   const SizedBox(height: 12),
@@ -395,8 +393,15 @@ class _ProfilPageState extends State<ProfilPage> {
   }
 
   // ---- level ----
-  Widget _buildLevelCard() {
-    final progress = (_xp / _xpTarget).clamp(0.0, 1.0);
+  Widget _buildLevelCard(LearningProgress learningProgress) {
+    const xpPerLevel = 500;
+    final currentLevelXp = learningProgress.xp % xpPerLevel;
+    final progress = currentLevelXp / xpPerLevel;
+    final levelLabel = learningProgress.level == 1
+        ? 'Pemula'
+        : learningProgress.level < 5
+        ? 'Berkembang'
+        : 'Mahir';
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -407,7 +412,7 @@ class _ProfilPageState extends State<ProfilPage> {
           Row(
             children: [
               Text(
-                'Level $_level',
+                'Level ${learningProgress.level}',
                 style: const TextStyle(
                   fontSize: 17,
                   fontWeight: FontWeight.w800,
@@ -424,9 +429,9 @@ class _ProfilPageState extends State<ProfilPage> {
                   color: _gold.withOpacity(0.25),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Text(
-                  'Menengah',
-                  style: TextStyle(
+                child: Text(
+                  levelLabel,
+                  style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                     color: Color(0xFF9A6A00),
@@ -435,7 +440,7 @@ class _ProfilPageState extends State<ProfilPage> {
               ),
               const Spacer(),
               Text(
-                '$_xp XP',
+                '${learningProgress.xp} XP',
                 style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
@@ -456,7 +461,8 @@ class _ProfilPageState extends State<ProfilPage> {
           ),
           const SizedBox(height: 8),
           Text(
-            '${_xpTarget - _xp} XP lagi menuju Level ${_level + 1}',
+            '${xpPerLevel - currentLevelXp} XP lagi menuju '
+            'Level ${learningProgress.level + 1}',
             style: const TextStyle(fontSize: 12.5, color: AppColors.inactive),
           ),
         ],
@@ -465,14 +471,21 @@ class _ProfilPageState extends State<ProfilPage> {
   }
 
   // ---- statistik ----
-  Widget _buildStats() {
-    return const Row(
+  Widget _buildStats(LearningProgress learningProgress) {
+    final accuracy = learningProgress.totalAnswers == 0
+        ? 0
+        : (learningProgress.correctAnswers /
+                  learningProgress.totalAnswers *
+                  100)
+              .round();
+
+    return Row(
       children: [
         Expanded(
           child: _StatCard(
             icon: Icons.local_fire_department_rounded,
             color: Color(0xFFEF6C00),
-            value: '7',
+            value: '${learningProgress.streakDays}',
             label: 'Hari beruntun',
           ),
         ),
@@ -481,7 +494,7 @@ class _ProfilPageState extends State<ProfilPage> {
           child: _StatCard(
             icon: Icons.menu_book_rounded,
             color: AppColors.primary,
-            value: '128',
+            value: '${learningProgress.learnedCount}',
             label: 'Kata dikuasai',
           ),
         ),
@@ -490,7 +503,7 @@ class _ProfilPageState extends State<ProfilPage> {
           child: _StatCard(
             icon: Icons.gps_fixed_rounded,
             color: Color(0xFF2E7D32),
-            value: '86%',
+            value: '$accuracy%',
             label: 'Akurasi',
           ),
         ),
@@ -499,13 +512,36 @@ class _ProfilPageState extends State<ProfilPage> {
   }
 
   // ---- pencapaian ----
-  Widget _buildBadges() {
+  Widget _buildBadges(LearningProgress learningProgress) {
+    final badges = [
+      _BadgeData(
+        Icons.waving_hand_rounded,
+        'Horas!',
+        learningProgress.learnedCount >= 1,
+      ),
+      _BadgeData(
+        Icons.local_fire_department_rounded,
+        '7 Hari',
+        learningProgress.streakDays >= 7,
+      ),
+      _BadgeData(
+        Icons.menu_book_rounded,
+        '100 Kata',
+        learningProgress.learnedCount >= 100,
+      ),
+      _BadgeData(
+        Icons.emoji_events_rounded,
+        'Sempurna',
+        learningProgress.perfectExercises > 0,
+      ),
+    ];
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 18),
       decoration: _card(),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: _badges.map((b) => _BadgeItem(data: b)).toList(),
+        children: badges.map((badge) => _BadgeItem(data: badge)).toList(),
       ),
     );
   }
@@ -531,7 +567,8 @@ class _ProfilPageState extends State<ProfilPage> {
               _SettingTile(
                 icon: Icons.notifications_none_rounded,
                 title: 'Pengingat belajar harian',
-                onTap: () => context.read<ProfileCubit>().setReminder(!_reminder),
+                onTap: () =>
+                    context.read<ProfileCubit>().setReminder(!_reminder),
                 trailing: Switch(
                   value: _reminder,
                   activeColor: AppColors.primary,
@@ -656,9 +693,7 @@ class _BadgeItem extends StatelessWidget {
           height: 56,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: unlocked
-                ? _gold.withOpacity(0.25)
-                : const Color(0xFFEDF0F5),
+            color: unlocked ? _gold.withOpacity(0.25) : const Color(0xFFEDF0F5),
             border: unlocked ? Border.all(color: _gold, width: 2) : null,
           ),
           child: Icon(
@@ -721,7 +756,8 @@ class _SettingTile extends StatelessWidget {
         ),
       ),
       trailing:
-          trailing ?? const Icon(Icons.chevron_right_rounded, color: AppColors.inactive),
+          trailing ??
+          const Icon(Icons.chevron_right_rounded, color: AppColors.inactive),
     );
   }
 }
@@ -800,22 +836,22 @@ class _EditNameSheetState extends State<_EditNameSheet> {
             ),
             const SizedBox(height: 16),
             SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: FilledButton(
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+              width: double.infinity,
+              height: 48,
+              child: FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                onPressed: _save,
+                child: const Text(
+                  'Simpan',
+                  style: TextStyle(fontWeight: FontWeight.w700),
                 ),
               ),
-              onPressed: _save,
-              child: const Text(
-                'Simpan',
-                style: TextStyle(fontWeight: FontWeight.w700),
-              ),
             ),
-          ),
           ],
         ),
       ),

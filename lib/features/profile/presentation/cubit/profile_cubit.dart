@@ -4,43 +4,28 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 class ProfileState extends Equatable {
   final String name;
   final bool reminder;
-  final int level;
-  final int xp;
-  final int xpTarget;
 
   const ProfileState({
     required this.name,
     required this.reminder,
-    required this.level,
-    required this.xp,
-    required this.xpTarget,
   });
 
   const ProfileState.initial()
-      : name = 'Maruli Sihombing',
-        reminder = true,
-        level = 3,
-        xp = 340,
-        xpTarget = 500;
+      : name = 'Pengguna',
+        reminder = false;
 
   ProfileState copyWith({
     String? name,
     bool? reminder,
-    int? level,
-    int? xp,
-    int? xpTarget,
   }) {
     return ProfileState(
       name: name ?? this.name,
       reminder: reminder ?? this.reminder,
-      level: level ?? this.level,
-      xp: xp ?? this.xp,
-      xpTarget: xpTarget ?? this.xpTarget,
     );
   }
 
   @override
-  List<Object?> get props => [name, reminder, level, xp, xpTarget];
+  List<Object?> get props => [name, reminder];
 }
 
 class ProfileCubit extends Cubit<ProfileState> {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/learning/presentation/cubit/learning_cubit.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_bottom_nav.dart';
 import '../../features/profile/presentation/cubit/profile_cubit.dart';
@@ -52,7 +53,9 @@ GoRouter buildAppRouter() {
                   GoRoute(
                     parentNavigatorKey: rootNavigatorKey,
                     path: 'new',
-                    builder: (context, state) => const NewWordSearchPage(),
+                    builder: (context, state) => NewWordSearchPage(
+                      initialQuery: state.uri.queryParameters['q'],
+                    ),
                   ),
                 ],
               ),
@@ -67,12 +70,48 @@ GoRouter buildAppRouter() {
                   GoRoute(
                     parentNavigatorKey: rootNavigatorKey,
                     path: 'quiz',
-                    builder: (context, state) => const Quiz1Page(),
+                    builder: (context, state) {
+                      final learningState =
+                          context.watch<LearningCubit>().state;
+                      if (learningState is LearningLoaded) {
+                        return Quiz1Page(words: learningState.words);
+                      }
+                      return Scaffold(
+                        backgroundColor: AppColors.background,
+                        body: Center(
+                          child: Text(
+                            learningState is LearningError
+                                ? 'Data latihan gagal dimuat: '
+                                    '${learningState.message}'
+                                : 'Memuat kosakata dari kamus...',
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      );
+                    },
                   ),
                   GoRoute(
                     parentNavigatorKey: rootNavigatorKey,
                     path: 'sentence',
-                    builder: (context, state) => const KalimatPage(),
+                    builder: (context, state) {
+                      final learningState =
+                          context.watch<LearningCubit>().state;
+                      if (learningState is LearningLoaded) {
+                        return KalimatPage(words: learningState.words);
+                      }
+                      return Scaffold(
+                        backgroundColor: AppColors.background,
+                        body: Center(
+                          child: Text(
+                            learningState is LearningError
+                                ? 'Data latihan gagal dimuat: '
+                                    '${learningState.message}'
+                                : 'Memuat kosakata dari kamus...',
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),

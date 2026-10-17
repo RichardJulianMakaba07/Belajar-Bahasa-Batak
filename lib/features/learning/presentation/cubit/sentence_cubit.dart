@@ -1,5 +1,9 @@
+import 'dart:math';
+
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+
+import '../../domain/entities/batak_word.dart';
 
 class SentenceQuestion extends Equatable {
   final List<String> words;
@@ -11,6 +15,36 @@ class SentenceQuestion extends Equatable {
     required this.answer,
     this.hint = 'Pikirkan urutan kalimat yang paling natural.',
   });
+
+  static SentenceQuestion? fromEntry(BatakWord entry, Random random) {
+    final phrase = entry.word.trim();
+    if (phrase.contains(RegExp(r'[;:()\d]'))) return null;
+
+    final answer = phrase
+        .split(RegExp(r'\s+'))
+        .where((token) => token.isNotEmpty)
+        .toList();
+    if (answer.length < 2 || answer.length > 6) return null;
+
+    var shuffled = [...answer]..shuffle(random);
+    for (var attempt = 0; attempt < 5 && _sameOrder(shuffled, answer); attempt++) {
+      shuffled = [...answer]..shuffle(random);
+    }
+
+    return SentenceQuestion(
+      words: shuffled,
+      answer: answer,
+      hint: 'Artinya: ${entry.meaning}',
+    );
+  }
+
+  static bool _sameOrder(List<String> first, List<String> second) {
+    if (first.length != second.length) return false;
+    for (var index = 0; index < first.length; index++) {
+      if (first[index] != second[index]) return false;
+    }
+    return true;
+  }
 
   @override
   List<Object?> get props => [words, answer, hint];
@@ -48,7 +82,7 @@ class SentenceState extends Equatable {
   });
 
   SentenceQuestion get current => questions[index];
-  bool get isLast => index == questions.length - 1;
+  bool get isLast => questions.isNotEmpty && index == questions.length - 1;
 
   @override
   List<Object?> get props => [
@@ -66,31 +100,10 @@ class SentenceState extends Equatable {
 class SentenceCubit extends Cubit<SentenceState> {
   final Stopwatch _stopwatch = Stopwatch();
 
-  SentenceCubit()
+  SentenceCubit(List<SentenceQuestion> questions)
       : super(
-          const SentenceState(
-            questions: [
-              SentenceQuestion(
-                words: ['aku', 'mauliate', 'hamu', 'HORAS', 'ma'],
-                answer: ['HORAS', 'mauliate', 'ma', 'hamu'],
-              ),
-              SentenceQuestion(
-                words: ['hita', 'ahu', 'ma', 'mangan'],
-                answer: ['mangan', 'ma', 'hita'],
-              ),
-              SentenceQuestion(
-                words: ['tu', 'dang', 'jabu', 'ahu', 'mulak'],
-                answer: ['mulak', 'ahu', 'tu', 'jabu'],
-              ),
-              SentenceQuestion(
-                words: ['Batak', 'hamu', 'halak', 'ahu'],
-                answer: ['ahu', 'halak', 'Batak'],
-              ),
-              SentenceQuestion(
-                words: ['huboto', 'mauliate', 'dang'],
-                answer: ['dang', 'huboto'],
-              ),
-            ],
+          SentenceState(
+            questions: questions,
             index: 0,
             bank: const [],
             selected: const [],
@@ -101,7 +114,20 @@ class SentenceCubit extends Cubit<SentenceState> {
           ),
         ) {
     _stopwatch.start();
-    _loadQuestion();
+    if (questions.isNotEmpty) _loadQuestion();
+  }
+
+  static List<SentenceQuestion> questionsFromWords(
+    List<BatakWord> words, {
+    int count = 5,
+  }) {
+    final random = Random();
+    final questions = words
+        .map((word) => SentenceQuestion.fromEntry(word, random))
+        .whereType<SentenceQuestion>()
+        .toList()
+      ..shuffle(random);
+    return questions.take(count).toList();
   }
 
   void _loadQuestion() {

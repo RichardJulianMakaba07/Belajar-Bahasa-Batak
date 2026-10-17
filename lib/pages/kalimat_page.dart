@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/theme/app_colors.dart';
+import '../features/learning/domain/entities/batak_word.dart';
 import '../features/learning/presentation/cubit/learning_cubit.dart';
 import '../features/learning/presentation/cubit/sentence_cubit.dart';
 import 'latihan_selesai_page.dart';
@@ -25,14 +26,16 @@ const _green = Color(0xFF2E7D32);
 const _red = Color(0xFFC62828);
 
 class KalimatPage extends StatelessWidget {
+  final List<BatakWord> words;
   final VoidCallback? onExit;
 
-  const KalimatPage({super.key, this.onExit});
+  const KalimatPage({super.key, required this.words, this.onExit});
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (_) => SentenceCubit(),
+      create: (_) =>
+          SentenceCubit(SentenceCubit.questionsFromWords(words)),
       child: _KalimatView(onExit: onExit),
     );
   }
@@ -91,6 +94,39 @@ class _KalimatView extends StatelessWidget {
       },
       child: BlocBuilder<SentenceCubit, SentenceState>(
         builder: (context, state) {
+          if (state.questions.isEmpty) {
+            return Scaffold(
+              backgroundColor: AppColors.background,
+              body: SafeArea(
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          'Belum ada frasa Bahasa Batak yang cocok di database '
+                          'untuk latihan susun kata.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.dark,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        FilledButton(
+                          onPressed: () => context.go('/exercise'),
+                          child: const Text('Kembali ke latihan'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }
+
           if (state.finished) {
             final skor = state.solved.length;
             return LatihanSelesaiPage(

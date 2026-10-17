@@ -5,27 +5,34 @@ import 'package:go_router/go_router.dart';
 import '../core/theme/app_colors.dart';
 import '../features/learning/presentation/cubit/learning_cubit.dart';
 
-class _FallbackWord {
-  final String word;
-  final String meaning;
-  const _FallbackWord(this.word, this.meaning);
+/// Kata yang Dipelajari
+class LearnedWordsPage extends StatefulWidget {
+  const LearnedWordsPage({super.key});
+
+  @override
+  State<LearnedWordsPage> createState() => _LearnedWordsPageState();
 }
 
-/// Kata yang Dipelajari
-class LearnedWordsPage extends StatelessWidget {
-  const LearnedWordsPage({super.key});
+class _LearnedWordsPageState extends State<LearnedWordsPage> {
+  final _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final state = context.watch<LearningCubit>().state;
-    const fallbackWords = <_FallbackWord>[
-      _FallbackWord('HORAS', 'Halo / salam'),
-      _FallbackWord('MAULIATE', 'Terima kasih'),
-      _FallbackWord('AMANG', 'Ayah / panggilan untuk laki-laki'),
-      _FallbackWord('INANG', 'Ibu / panggilan untuk perempuan'),
-      _FallbackWord('GABE', 'Menjadi / berhasil'),
-    ];
-
+    final learnedWords =
+        state is LearningLoaded ? state.learnedWords : const [];
+    final query = _searchController.text.trim().toLowerCase();
+    final visibleWords = learnedWords
+        .where((word) =>
+            word.word.toLowerCase().contains(query) ||
+            word.meaning.toLowerCase().contains(query))
+        .toList();
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -52,14 +59,18 @@ class LearnedWordsPage extends StatelessWidget {
             ),
             const SizedBox(height: 14),
             Text(
-              '${state is LearningLoaded ? state.learnedWords.length : 32} kata tersimpan di bank kata kamu',
+              '${state is LearningLoaded ? state.learnedWords.length : 0} kata tersimpan di bank kata kamu',
               style: const TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                   color: AppColors.inactive),
             ),
             const SizedBox(height: 14),
-            const _SearchBar(hint: 'Cari kata yang sudah dipelajari...'),
+            _SearchBar(
+              hint: 'Cari kata yang sudah dipelajari...',
+              controller: _searchController,
+              onChanged: (_) => setState(() {}),
+            ),
             const SizedBox(height: 22),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -70,7 +81,7 @@ class LearnedWordsPage extends StatelessWidget {
                         fontWeight: FontWeight.w700,
                         color: Color(0xFF0F1B33))),
                 Text(
-                  '${state is LearningLoaded ? state.learnedWords.length : 32} kata',
+                          '${state is LearningLoaded ? visibleWords.length : 0} kata',
                   style: const TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w800,
@@ -79,18 +90,21 @@ class LearnedWordsPage extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            if (state is LearningLoaded)
-              for (final w in state.learnedWords) ...[
+            if (state is LearningLoading)
+              const Center(child: CircularProgressIndicator())
+            else if (state is LearningError)
+              Text('Kata tersimpan gagal dimuat: ${state.message}')
+            else if (visibleWords.isEmpty)
+              Text(
+                query.isEmpty
+                    ? 'Belum ada kata yang dipelajari.'
+                    : 'Tidak ada kata tersimpan yang cocok dengan pencarian.',
+                style: const TextStyle(color: AppColors.inactive),
+              )
+            else
+              for (final w in visibleWords) ...[
                 _WordCard(
                   batak: w.word.toUpperCase(),
-                  meaning: w.meaning,
-                ),
-                const SizedBox(height: 10),
-              ]
-            else
-              for (final w in fallbackWords) ...[
-                _WordCard(
-                  batak: w.word,
                   meaning: w.meaning,
                 ),
                 const SizedBox(height: 10),
@@ -111,7 +125,14 @@ class LearnedWordsPage extends StatelessWidget {
 
 class _SearchBar extends StatelessWidget {
   final String hint;
-  const _SearchBar({required this.hint});
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+
+  const _SearchBar({
+    required this.hint,
+    required this.controller,
+    required this.onChanged,
+  });
 
   OutlineInputBorder _outline(Color c) => OutlineInputBorder(
       borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: c));
@@ -119,6 +140,8 @@ class _SearchBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return TextField(
+      controller: controller,
+      onChanged: onChanged,
       style: const TextStyle(fontSize: 13),
       decoration: InputDecoration(
         hintText: hint,

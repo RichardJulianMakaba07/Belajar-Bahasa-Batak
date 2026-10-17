@@ -1,9 +1,11 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/theme/app_colors.dart';
+import '../features/learning/domain/entities/batak_word.dart';
 import '../features/learning/domain/entities/learning_progress.dart';
 import '../features/learning/presentation/cubit/learning_cubit.dart';
 
@@ -11,11 +13,7 @@ class HomePage extends StatefulWidget {
   final VoidCallback? onLearnWord;
   final VoidCallback? onStartPractice;
 
-  const HomePage({
-    super.key,
-    this.onLearnWord,
-    this.onStartPractice,
-  });
+  const HomePage({super.key, this.onLearnWord, this.onStartPractice});
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -26,47 +24,19 @@ class _HomePageState extends State<HomePage> {
   int _currentPage = 0;
   Timer? _timer;
 
-  final List<Map<String, String>> _batakPhrases = const [
-    {
-      "word": "HORAS",
-      "translation": "Halo / salam",
-    },
-    {
-      "word": "MAULIATE",
-      "translation": "Terima kasih",
-    },
-    {
-      "word": "AHA DO BARITAM?",
-      "translation": "Bagaimana kabarmu?",
-    },
-    {
-      "word": "SONANG DO ROHAKKU",
-      "translation": "Hatiku senang",
-    },
-    {
-      "word": "TIBU MA AMMAT",
-      "translation": "Cepat sembuh",
-    },
-    {
-      "word": "DANG HUBOTO",
-      "translation": "Saya tidak tahu",
-    },
-    {
-      "word": "MAJU MA HO",
-      "translation": "Semangatlah",
-    },
-  ];
+  List<BatakWord> get _featuredWords {
+    final state = context.read<LearningCubit>().state;
+    return state is LearningLoaded ? state.words.take(7).toList() : const [];
+  }
 
   @override
   void initState() {
     super.initState();
     _timer = Timer.periodic(const Duration(seconds: 4), (Timer timer) {
       if (!mounted) return;
-      if (_currentPage < _batakPhrases.length - 1) {
-        _currentPage++;
-      } else {
-        _currentPage = 0;
-      }
+      final count = _featuredWords.length;
+      if (count == 0) return;
+      _currentPage = (_currentPage + 1) % count;
 
       if (_pageController.hasClients) {
         _pageController.animateToPage(
@@ -88,6 +58,9 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     final state = context.watch<LearningCubit>().state;
+    final featuredWords = state is LearningLoaded
+        ? state.words.take(7).toList()
+        : const [];
     final progress = state is LearningLoaded
         ? state.progress
         : const LearningProgress.initial();
@@ -99,7 +72,7 @@ class _HomePageState extends State<HomePage> {
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
           children: [
             const Text(
-              'HORAS, MARULI 👋',
+              'HORAS 👋',
               style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.w800,
@@ -130,84 +103,103 @@ class _HomePageState extends State<HomePage> {
             const SizedBox(height: 24),
             const _SectionTitle('Kata hari ini'),
             const SizedBox(height: 12),
-            SizedBox(
-              height: 140,
-              child: PageView.builder(
-                controller: _pageController,
-                itemCount: _batakPhrases.length,
-                onPageChanged: (int index) {
-                  setState(() {
-                    _currentPage = index;
-                  });
-                },
-                itemBuilder: (context, index) {
-                  final item = _batakPhrases[index];
-                  return Material(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(16),
-                    child: InkWell(
+            if (featuredWords.isEmpty)
+              Container(
+                height: 140,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Text(
+                  state is LearningLoading
+                      ? 'Memuat data kamus...'
+                      : state is LearningError
+                      ? 'Data kamus gagal dimuat: ${state.message}'
+                      : 'Belum ada entri kamus.',
+                  textAlign: TextAlign.center,
+                ),
+              )
+            else ...[
+              SizedBox(
+                height: 140,
+                child: PageView.builder(
+                  controller: _pageController,
+                  itemCount: featuredWords.length,
+                  onPageChanged: (int index) {
+                    setState(() {
+                      _currentPage = index;
+                    });
+                  },
+                  itemBuilder: (context, index) {
+                    final word = featuredWords[index];
+                    return Material(
+                      color: AppColors.primary,
                       borderRadius: BorderRadius.circular(16),
-                      onTap: widget.onLearnWord,
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(20),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              item["word"]!,
-                              style: const TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.w800,
-                                color: Colors.white,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(16),
+                        onTap: widget.onLearnWord,
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                word.word.toUpperCase(),
+                                style: const TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white,
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              item["translation"]!,
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
+                              const SizedBox(height: 6),
+                              Text(
+                                word.meaning,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 10),
-                            const Text(
-                              'Pelajari kata →',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white,
+                              const SizedBox(height: 10),
+                              const Text(
+                                'Pelajari kata →',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                  );
-                },
+                    );
+                  },
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(
-                _batakPhrases.length,
-                (index) => AnimatedContainer(
-                  duration: const Duration(milliseconds: 250),
-                  margin: const EdgeInsets.symmetric(horizontal: 3),
-                  width: _currentPage == index ? 16 : 6,
-                  height: 6,
-                  decoration: BoxDecoration(
-                    color: _currentPage == index
-                        ? AppColors.primary
-                        : AppColors.inactive,
-                    borderRadius: BorderRadius.circular(3),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(
+                  featuredWords.length,
+                  (index) => AnimatedContainer(
+                    duration: const Duration(milliseconds: 250),
+                    margin: const EdgeInsets.symmetric(horizontal: 3),
+                    width: _currentPage == index ? 16 : 6,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      color: _currentPage == index
+                          ? AppColors.primary
+                          : AppColors.inactive,
+                      borderRadius: BorderRadius.circular(3),
+                    ),
                   ),
                 ),
               ),
-            ),
+            ],
             const SizedBox(height: 24),
             const _SectionTitle('Perkembanganmu'),
             const SizedBox(height: 12),
@@ -273,10 +265,7 @@ class _HomePageState extends State<HomePage> {
                 ),
                 child: const Text(
                   'Mulai pelajari arti kata →',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
                 ),
               ),
             ),
@@ -299,13 +288,13 @@ class _SectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Text(
-        text,
-        style: const TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w700,
-          color: Color(0xFF0F1B33),
-        ),
-      );
+    text,
+    style: const TextStyle(
+      fontSize: 16,
+      fontWeight: FontWeight.w700,
+      color: Color(0xFF0F1B33),
+    ),
+  );
 }
 
 class _Stat extends StatelessWidget {
@@ -399,15 +388,12 @@ class _SearchBar extends StatelessWidget {
   final String hint;
   final ValueChanged<String>? onSubmitted;
 
-  const _SearchBar({
-    required this.hint,
-    this.onSubmitted,
-  });
+  const _SearchBar({required this.hint, this.onSubmitted});
 
   OutlineInputBorder _outline(Color c) => OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: c),
-      );
+    borderRadius: BorderRadius.circular(12),
+    borderSide: BorderSide(color: c),
+  );
 
   @override
   Widget build(BuildContext context) {

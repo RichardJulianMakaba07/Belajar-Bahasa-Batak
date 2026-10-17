@@ -1,6 +1,8 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get_it/get_it.dart';
 
 import '../../features/learning/data/datasources/learning_local_data_source.dart';
+import '../../features/learning/data/datasources/learning_remote_data_source.dart';
 import '../../features/learning/data/repositories/learning_repository_impl.dart';
 import '../../features/learning/domain/repositories/learning_repository.dart';
 import '../../features/learning/domain/usecases/get_all_words_use_case.dart';
@@ -17,11 +19,18 @@ final sl = GetIt.instance;
 void configureDependencies() {
   if (sl.isRegistered<LearningRepository>()) return;
 
+  sl.registerLazySingleton<FirebaseFirestore>(() => FirebaseFirestore.instance);
   sl.registerLazySingleton<LearningLocalDataSource>(
     LearningLocalDataSource.new,
   );
+  sl.registerLazySingleton<LearningRemoteDataSource>(
+    () => LearningRemoteDataSource(sl<FirebaseFirestore>()),
+  );
   sl.registerLazySingleton<LearningRepository>(
-    () => LearningRepositoryImpl(sl<LearningLocalDataSource>()),
+    () => LearningRepositoryImpl(
+      local: sl<LearningLocalDataSource>(),
+      remote: sl<LearningRemoteDataSource>(),
+    ),
   );
 
   sl.registerLazySingleton(
