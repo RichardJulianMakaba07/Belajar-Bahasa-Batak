@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "434708632730",
+    "project_id": "horas-belajar-bahasa-batak",
+    "storage_bucket": "horas-belajar-bahasa-batak.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:434708632730:android:a0cd21ef064355dc51bb23",
+        "android_client_info": {
+          "package_name": "com.example.pembelajaran_bahasa_batak"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDfjJCBEDwUuRmSiWYyqHbnC9PtS7x745c"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

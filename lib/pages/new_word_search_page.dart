@@ -6,37 +6,26 @@ import '../core/theme/app_colors.dart';
 import '../features/learning/domain/entities/batak_word.dart';
 import '../features/learning/presentation/cubit/learning_cubit.dart';
 
+const List<String> _exampleWords = ['Horas', 'Mauliate', 'Amang', 'Inang'];
+
 /// ---------------------------------------------------------------------------
 /// HALAMAN CARI KATA BARU
 /// ---------------------------------------------------------------------------
 class NewWordSearchPage extends StatefulWidget {
-  final String? initialQuery;
 
   /// Dipanggil saat user menekan hasil pencarian (mis. buka detail kata).
   final ValueChanged<BatakWord>? onWordTap;
 
-  const NewWordSearchPage({super.key, this.initialQuery, this.onWordTap});
+  const NewWordSearchPage({super.key, this.onWordTap});
 
   @override
   State<NewWordSearchPage> createState() => _NewWordSearchPageState();
 }
 
 class _NewWordSearchPageState extends State<NewWordSearchPage> {
-  late final TextEditingController _controller;
-  List<BatakWord> _results = [];
-  bool _isSearching = false;
-  String? _searchError;
 
-  @override
-  void initState() {
-    super.initState();
-    _controller = TextEditingController(text: widget.initialQuery ?? '');
-    if (_controller.text.trim().isNotEmpty) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _search(_controller.text);
-      });
-    }
-  }
+  final TextEditingController _controller = TextEditingController();
+  List<BatakWord> _results = [];
 
   @override
   void dispose() {
@@ -48,37 +37,18 @@ class _NewWordSearchPageState extends State<NewWordSearchPage> {
   Future<void> _search(String query) async {
     final q = query.trim();
     if (q.isEmpty) {
-      if (mounted) {
-        setState(() {
-          _results = [];
-          _searchError = null;
-          _isSearching = false;
-        });
-      }
+      if (mounted) setState(() => _results = []);
       return;
     }
 
-    setState(() {
-      _isSearching = true;
-      _searchError = null;
-    });
-    try {
-      final result = await context.read<LearningCubit>().lookup(q);
-      if (!mounted || _controller.text.trim().toLowerCase() != q.toLowerCase()) {
-        return;
-      }
-      setState(() {
-        _results = result ?? [];
-        _isSearching = false;
-      });
-    } catch (error) {
-      if (!mounted || _controller.text.trim().toLowerCase() != q.toLowerCase()) {
-        return;
-      }
-      setState(() {
-        _isSearching = false;
-        _searchError = error.toString().replaceFirst('Exception: ', '');
-      });
+    await context.read<LearningCubit>().search(q);
+    if (!mounted || _controller.text.trim().toLowerCase() != q.toLowerCase()) {
+      return;
+    }
+
+    final state = context.read<LearningCubit>().state;
+    if (state is LearningLoaded) {
+      setState(() => _results = state.newWords);
     }
   }
 
@@ -91,15 +61,6 @@ class _NewWordSearchPageState extends State<NewWordSearchPage> {
   @override
   Widget build(BuildContext context) {
     final hasQuery = _controller.text.trim().isNotEmpty;
-    final state = context.watch<LearningCubit>().state;
-    final examples = state is LearningLoaded
-        ? state.words
-            .map((word) => word.word)
-            .where((word) => word.isNotEmpty)
-            .toSet()
-            .take(4)
-            .toList()
-        : const <String>[];
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -124,20 +85,14 @@ class _NewWordSearchPageState extends State<NewWordSearchPage> {
               const SizedBox(height: 12),
               _buildSearchField(),
               const SizedBox(height: 28),
-              if (examples.isNotEmpty) ...[
-                _buildSectionLabel('CONTOH KATA DARI KAMUS'),
-                const SizedBox(height: 12),
-                _buildExampleChips(examples),
-              ],
+              _buildSectionLabel('CONTOH KATA'),
+              const SizedBox(height: 12),
+              _buildExampleChips(),
               if (hasQuery) ...[
                 const SizedBox(height: 28),
                 _buildSectionLabel('HASIL PENCARIAN'),
                 const SizedBox(height: 12),
-                if (_isSearching)
-                  const Center(child: CircularProgressIndicator())
-                else if (_searchError != null)
-                  _buildSearchError(_searchError!)
-                else if (_results.isEmpty)
+                if (_results.isEmpty)
                   _buildEmptyResult()
                 else
                   ..._results.map(_buildResultCard),
@@ -234,7 +189,7 @@ class _NewWordSearchPageState extends State<NewWordSearchPage> {
   }
 
   // ----------------------------------------------------------- EXAMPLE CHIPS
-  Widget _buildExampleChips(List<String> examples) {
+  Widget _buildExampleChips() {
     return GridView.count(
       crossAxisCount: 2,
       shrinkWrap: true,
@@ -242,7 +197,7 @@ class _NewWordSearchPageState extends State<NewWordSearchPage> {
       mainAxisSpacing: 12,
       crossAxisSpacing: 16,
       childAspectRatio: 3.6,
-      children: examples.map((word) {
+      children: _exampleWords.map((word) {
         return Material(
           color: AppColors.indicator,
           borderRadius: BorderRadius.circular(18),
@@ -266,26 +221,6 @@ class _NewWordSearchPageState extends State<NewWordSearchPage> {
           ),
         );
       }).toList(),
-    );
-  }
-
-  Widget _buildSearchError(String message) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Text(
-        'Pencarian kamus gagal: $message',
-        style: const TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w700,
-          color: AppColors.inactive,
-        ),
-      ),
     );
   }
 
@@ -366,7 +301,7 @@ class _NewWordSearchPageState extends State<NewWordSearchPage> {
         border: Border.all(color: AppColors.border),
       ),
       child: const Text(
-        'Kata tidak ditemukan di kamus.',
+        'Kata tidak ditemukan di daftar kata yang belum dipelajari.',
         style: TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.w700,

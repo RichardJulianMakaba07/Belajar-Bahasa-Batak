@@ -1,35 +1,27 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/theme/app_colors.dart';
-import '../features/learning/domain/entities/batak_word.dart';
-import '../features/learning/presentation/cubit/learning_cubit.dart';
-import '../features/learning/presentation/cubit/sentence_cubit.dart';
 
 class VocabularyExercisePage extends StatelessWidget {
+  /// Jumlah kata baru yang dipelajari user hari ini.
+  final int learnedToday;
+
+  /// Target kata baru per hari.
+  final int dailyTarget;
+
   /// Jumlah soal tiap latihan.
   final int questionCount;
 
-  const VocabularyExercisePage({super.key, this.questionCount = 10});
+  const VocabularyExercisePage({
+    super.key,
+    this.learnedToday = 10,
+    this.dailyTarget = 10,
+    this.questionCount = 10,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final learningState = context.watch<LearningCubit>().state;
-    final words = learningState is LearningLoaded
-        ? learningState.words
-        : const <BatakWord>[];
-    final learnedCount = learningState is LearningLoaded
-        ? learningState.learnedWords.length
-        : 0;
-    final quizCount = min(questionCount, words.length);
-    final sentenceCount = SentenceCubit.questionsFromWords(
-      words,
-      count: questionCount,
-    ).length;
-
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -47,20 +39,7 @@ class VocabularyExercisePage extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            if (learningState is LearningLoading)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 16),
-                child: Center(child: CircularProgressIndicator()),
-              )
-            else if (learningState is LearningError)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                child: Text(
-                  'Data latihan gagal dimuat: ${learningState.message}',
-                  style: const TextStyle(color: AppColors.inactive),
-                ),
-              ),
-            _buildReviewCard(learnedCount),
+            _buildReviewCard(),
             const SizedBox(height: 28),
             const Text(
               'PILIH JENIS LATIHAN',
@@ -76,26 +55,21 @@ class VocabularyExercisePage extends StatelessWidget {
               letter: 'A',
               title: 'Pilih Arti Kata',
               description: 'Pilih arti yang benar dari kata yang ditampilkan.',
-              meta: '$quizCount soal  •  Pilihan ganda',
-              onTap: quizCount == 0
-                  ? null
-                  : () {
-                      context.push('/exercise/quiz');
-                    },
+              meta: '$questionCount soal  •  Pilihan ganda',
+              onTap: () {
+                context.push('/exercise/quiz');
+              },
             ),
             const SizedBox(height: 14),
             _ExerciseCard(
               letter: 'B',
               title: 'Susun Kata Jadi Kalimat',
-              description: sentenceCount == 0
-                  ? 'Belum ada frasa yang cukup panjang di database untuk latihan ini.'
-                  : 'Susun kata-kata dari frasa kamus menjadi urutan yang benar.',
-              meta: '$sentenceCount soal  •  Susun kata',
-              onTap: sentenceCount == 0
-                  ? null
-                  : () {
-                      context.push('/exercise/sentence');
-                    },
+              description:
+                  'Susun kata-kata acak menjadi kalimat yang benar.',
+              meta: '$questionCount soal  •  Susun kata',
+              onTap: () {
+                context.push('/exercise/sentence');
+              },
             ),
             const SizedBox(height: 28),
             _buildInfoBox(),
@@ -135,8 +109,8 @@ class VocabularyExercisePage extends StatelessWidget {
   }
 
   // ------------------------------------------------------------ REVIEW CARD
-  Widget _buildReviewCard(int learnedCount) {
-    final hasLearned = learnedCount > 0;
+  Widget _buildReviewCard() {
+    final hasLearned = learnedToday> 0;
 
     return Container(
       width: double.infinity,
@@ -153,7 +127,7 @@ class VocabularyExercisePage extends StatelessWidget {
               Text('✨', style: TextStyle(fontSize: 16)),
               SizedBox(width: 6),
               Text(
-                'Kosakata dipelajari',
+                'Review hari ini',
                 style: TextStyle(
                   fontSize: 17,
                   fontWeight: FontWeight.w800,
@@ -165,8 +139,8 @@ class VocabularyExercisePage extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             hasLearned
-                ? 'Kamu sudah mempelajari $learnedCount kata dari kamus.'
-                : 'Kamu belum menandai kata yang sudah dipelajari.',
+                ? 'Kamu belajar $learnedToday kata baru hari ini.'
+                : 'Kamu belum belajar kata baru hari ini.',
             style: const TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w700,
@@ -174,9 +148,11 @@ class VocabularyExercisePage extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 6),
-          const Text(
-            'Soal latihan dibuat dari kosakata yang tersedia di database.',
-            style: TextStyle(
+          Text(
+            hasLearned
+                ? 'Latihan berikut akan mereview $learnedToday kata baru itu.'
+                : 'Latihan berikut akan mereview kata dari hari sebelumnya.',
+            style: const TextStyle(
               fontSize: 13,
               height: 1.3,
               fontWeight: FontWeight.w700,
@@ -197,21 +173,33 @@ class VocabularyExercisePage extends StatelessWidget {
         color: AppColors.indicator,
         borderRadius: BorderRadius.circular(20),
       ),
-      child: const Row(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('📚', style: TextStyle(fontSize: 18)),
-          SizedBox(width: 12),
+          const Text('📚', style: TextStyle(fontSize: 18)),
+          const SizedBox(width: 12),
           Expanded(
-            child: Text(
-              'Materi kamus dan soal latihan mengikuti data Bahasa Batak '
-              'yang tersedia di database.',
-              style: TextStyle(
-                fontSize: 13,
-                height: 1.3,
-                fontWeight: FontWeight.w700,
-                color: AppColors.inactive,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Belum belajar $dailyTarget kata hari ini?',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.dark,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Kita akan review kata dari hari sebelumnya.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.inactive,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -228,7 +216,7 @@ class _ExerciseCard extends StatelessWidget {
   final String title;
   final String description;
   final String meta;
-  final VoidCallback? onTap;
+  final VoidCallback onTap;
 
   const _ExerciseCard({
     required this.letter,
@@ -304,14 +292,12 @@ class _ExerciseCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.only(top: 28, left: 6),
+                const Padding(
+                  padding: EdgeInsets.only(top: 28, left: 6),
                   child: Icon(
                     Icons.chevron_right_rounded,
                     size: 24,
-                    color: onTap == null
-                        ? AppColors.border
-                        : AppColors.inactive,
+                    color: AppColors.inactive,
                   ),
                 ),
               ],
@@ -321,4 +307,4 @@ class _ExerciseCard extends StatelessWidget {
       ),
     );
   }
-}
+}  

@@ -117,17 +117,25 @@ class LearningCubit extends Cubit<LearningState> {
     }
   }
 
-  /// Mencari kata di kamus tanpa menyamarkan kegagalan Firestore.
-  /// Mengembalikan null bila permintaan sudah dikalahkan pencarian yang baru.
-  Future<List<BatakWord>?> lookup(String query) async {
+  Future<void> search(String query) async {
     final id = ++_searchRequestId;
+    if (state is! LearningLoaded) return;
+
+    final current = state as LearningLoaded;
     if (query.trim().isEmpty) {
-      return const [];
+      emit(current.copyWith(newWords: const []));
+      return;
     }
 
-    final result = await searchNewWords(query);
-    if (id != _searchRequestId || isClosed) return null;
-    return result;
+    try {
+      final result = await searchNewWords(query);
+      if (id != _searchRequestId || isClosed) return;
+      emit(current.copyWith(newWords: result));
+    } catch (_) {
+      if (id == _searchRequestId) {
+        emit(current.copyWith(newWords: const []));
+      }
+    }
   }
 
   Future<void> setLearned(BatakWord word) async {

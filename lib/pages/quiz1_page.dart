@@ -3,22 +3,36 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/theme/app_colors.dart';
-import '../features/learning/domain/entities/batak_word.dart';
 import '../features/learning/presentation/cubit/learning_cubit.dart';
 import '../features/learning/presentation/cubit/quiz_cubit.dart';
 import 'latihan_selesai_page.dart';
+
+const List<QuizWord> _defaultWords = [
+  QuizWord(word: 'Horas', meaning: 'Halo / salam'),
+  QuizWord(word: 'Mauliate', meaning: 'Terima kasih'),
+  QuizWord(word: 'Amang', meaning: 'Bapak / ayah'),
+  QuizWord(word: 'Inang', meaning: 'Ibu'),
+  QuizWord(word: 'Boru', meaning: 'Anak perempuan'),
+  QuizWord(word: 'Bere', meaning: 'Keponakan'),
+  QuizWord(word: 'Lae', meaning: 'Ipar laki-laki'),
+  QuizWord(word: 'Eda', meaning: 'Ipar perempuan'),
+  QuizWord(word: 'Dame', meaning: 'Damai'),
+  QuizWord(word: 'Tulang', meaning: 'Paman'),
+  QuizWord(word: 'Mangan', meaning: 'Makan'),
+  QuizWord(word: 'Pasu-pasu', meaning: 'Berkat'),
+];
 
 /// ---------------------------------------------------------------------------
 /// HALAMAN KUIS: PILIH ARTI KATA
 /// ---------------------------------------------------------------------------
 class Quiz1Page extends StatelessWidget {
-  final List<BatakWord> words;
+  final List<QuizWord>? words;
   final int questionCount;
   final void Function(int score, int total)? onFinished;
 
   const Quiz1Page({
     super.key,
-    this.words = const [],
+    this.words,
     this.questionCount = 10,
     this.onFinished,
   });
@@ -27,9 +41,7 @@ class Quiz1Page extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (_) => QuizCubit(
-        words
-            .map((word) => QuizWord(word: word.word, meaning: word.meaning))
-            .toList(),
+        words ?? _defaultWords,
         questionCount: questionCount,
       ),
       child: _QuizView(

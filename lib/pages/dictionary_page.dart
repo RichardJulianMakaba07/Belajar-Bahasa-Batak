@@ -4,6 +4,14 @@ import 'package:go_router/go_router.dart';
 
 import '../core/theme/app_colors.dart';
 import '../features/learning/presentation/cubit/learning_cubit.dart';
+import '../features/learning/domain/entities/batak_word.dart';
+
+// Data contoh
+const _words = [
+  ('HORAS', 'Halo / salam'),
+  ('MAULIATE', 'Terima kasih'),
+  ('AMANG', 'Ayah / panggilan untuk laki-laki'),
+];
 
 /// Kamus
 class DictionaryPage extends StatelessWidget {
@@ -14,7 +22,7 @@ class DictionaryPage extends StatelessWidget {
     final state = context.watch<LearningCubit>().state;
     final learned = state is LearningLoaded
         ? state.learnedWords.take(3).toList()
-        : const [];
+        : const <BatakWord>[];
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -22,22 +30,18 @@ class DictionaryPage extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
           children: [
-            const Text(
-              'Kamus',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF0F1B33),
-              ),
-            ),
+            const Text('Kamus',
+                style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF0F1B33))),
             const SizedBox(height: 4),
             const Text(
               'Cari arti kata atau lihat kata yang sudah kamu pelajari.',
               style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF5F6F8A),
-              ),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF5F6F8A)),
             ),
             const SizedBox(height: 16),
             _SearchBar(
@@ -61,43 +65,29 @@ class DictionaryPage extends StatelessWidget {
                   const Text(
                     'Kata yang sudah dipelajari',
                     style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF0F1B33),
-                    ),
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF0F1B33)),
                   ),
                   Text(
-                    '${state is LearningLoaded ? state.learnedWords.length : 0} kata',
+                    '${state is LearningLoaded ? state.learnedWords.length : 32} kata',
                     style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.primary,
-                    ),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.primary),
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 12),
             if (learned.isEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 18),
-                child: Center(
-                  child: state is LearningLoading
-                      ? const CircularProgressIndicator()
-                      : Text(
-                          state is LearningError
-                              ? 'Kamus tidak dapat dimuat: ${state.message}'
-                              : 'Kata yang kamu pelajari akan tampil di sini.',
-                          textAlign: TextAlign.center,
-                        ),
-                ),
-              )
+              for (final w in _words) ...[
+                _WordCard(batak: w.$1, meaning: w.$2),
+                const SizedBox(height: 10),
+              ]
             else
-              for (final word in learned) ...[
-                _WordCard(
-                  batak: word.word.toUpperCase(),
-                  meaning: word.meaning,
-                ),
+              for (final w in learned) ...[
+                _WordCard(batak: w.word.toUpperCase(), meaning: w.meaning),
                 const SizedBox(height: 10),
               ],
             const SizedBox(height: 2),
@@ -120,12 +110,15 @@ class _SearchBar extends StatelessWidget {
   final String hint;
   final ValueChanged<String>? onSubmitted;
 
-  const _SearchBar({required this.hint, this.onSubmitted});
+  const _SearchBar({
+    required this.hint,
+    this.onSubmitted,
+  });
 
   OutlineInputBorder _outline(Color c) => OutlineInputBorder(
-    borderRadius: BorderRadius.circular(12),
-    borderSide: BorderSide(color: c),
-  );
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: c),
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -181,31 +174,21 @@ class _WordCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      batak,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.primary,
-                      ),
-                    ),
+                    Text(batak,
+                        style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.primary)),
                     const SizedBox(height: 4),
-                    Text(
-                      meaning,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF0F1B33),
-                      ),
-                    ),
+                    Text(meaning,
+                        style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF0F1B33))),
                   ],
                 ),
               ),
-              const Icon(
-                Icons.chevron_right,
-                size: 18,
-                color: Color(0xFF5F6F8A),
-              ),
+              const Icon(Icons.chevron_right, size: 18, color: Color(0xFF5F6F8A)),
             ],
           ),
         ),
@@ -235,25 +218,16 @@ class _InfoCard extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: AppColors.indicator,
-          borderRadius: BorderRadius.circular(12),
-        ),
+            color: AppColors.indicator, borderRadius: BorderRadius.circular(12)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              '$icon $title',
-              style: const TextStyle(fontSize: 12, color: Color(0xFF5F6F8A)),
-            ),
+            Text('$icon $title',
+                style: const TextStyle(fontSize: 12, color: Color(0xFF5F6F8A))),
             const SizedBox(height: 4),
-            Text(
-              message,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF0F1B33),
-              ),
-            ),
+            Text(message,
+                style: const TextStyle(
+                    fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF0F1B33))),
           ],
         ),
       ),
